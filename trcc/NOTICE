@@ -1,0 +1,40 @@
+trcc-token-dash
+===============
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See the file LICENSE.
+
+USB Bulk LCD protocol (handshake, frame header, chunked EP01 OUT writes, ZLP,
+PM/SUB resolution ladder for 960×320, JPEG encode rotation for 960×320 when
+SUB≥5) was reimplemented from the open-source project:
+
+  thermalright-trcc-linux
+  https://github.com/Lexonight1/thermalright-trcc-linux
+  Copyright (C) Lexonight1 and contributors
+  Licensed under the GNU General Public License v3.0
+
+Key reference sources in that project (not vendored as a dependency):
+  - src/trcc/adapters/device/bulk_lcd.py
+  - src/trcc/core/protocol.py (ENCODE_ROTATIONS / bulk_profile)
+  - doc/PROTOCOL_USBLCDNEW.md
+
+Cursor usage CSV fetch algorithm (local state.vscdb accessToken + WorkosCursor
+session cookie shape) was independently reimplemented in Python after reading
+TokenTracker’s documented cookie format; no TokenTracker code is copied.
+
+Dashboard layout and rendering are original to this project.
+
+Note: the upstream 960×320 rule (SUB ≥ 5 → encode 180°) is NOT applied; on
+HydroNous R1 (PM=17, SUB=5) 0° is upright.  Rotation/mirror are user settings.
+
+Bundled third-party binaries (vendor/lhm, unmodified, from nuget.org):
+  - LibreHardwareMonitorLib 0.9.6 — MPL-2.0
+    https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+  - HidSharp 2.6.4 — Apache-2.0
+  - DiskInfoToolkit 1.1.2, RAMSPDToolkit-NDD 1.4.2, BlackSharp.Core 1.0.7
+    (LibreHardwareMonitor dependencies; see their NuGet pages for licenses)
+  - System.Management, System.IO.Ports, System.Threading.AccessControl,
+    System.CodeDom — MIT (Microsoft / .NET Foundation)
+Loaded at runtime through pythonnet (MIT) on the system .NET 8 runtime.

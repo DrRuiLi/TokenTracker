@@ -1,0 +1,1053 @@
+{
+  "_meta": {
+    "note": "Curated price overrides. Always wins over LiteLLM. Two reasons to live here: (1) self-defined alias names that LiteLLM will never carry (kiro-*, hy3-*, composer-*, kimi-for-coding, free-tier OpenRouter routes); (2) prices we want to pin even if LiteLLM has the model (e.g. cache_write fields LiteLLM often omits). Units: USD per million tokens. Edit this file to override pricing without redeploying.",
+    "units": "usd_per_million_tokens",
+    "deepseek_v4_pricing_note": "Official DeepSeek V4 pricing verified on 2026-08-21. Peak hours are 01:00-04:00 and 06:00-10:00 UTC; all other hours are off-peak at half price. Exact entries store peak rates. computeRowCost applies the time-of-use discount from each row's UTC hour_start.",
+    "iflytek_maas_pricing_note": "iFlytek MaaS inference prices supplied for AStudio on 2026-08-31. AStudio homepage: https://agent.xfyun.cn/. Official pricing source: https://maas.xfyun.cn/modelSquare. Source values are RMB per million tokens, converted at 7.2 RMB/USD, then rounded to two decimal places for billing. Models without a dedicated cache-hit price use the normal input rate; cache writes also use the normal input rate. iFlytek MaaS prices are source-scoped and do not inherit DeepSeek time-of-use discounts. Spark-X2.5 entries (spark-x2.5, spark-x2.5-4b, spark-x2.5-1.7b) were read from the model square on 2026-10-08; spark-x2.5 is listed at a limited-time 30% rate (0.96 / 3.6 / 0.14 RMB input / output / cache-hit, list price 3.2 / 12 / 0.48), and the two small models are free."
+  },
+  "exact": {
+    "claude-opus-5-5": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 5,
+      "note": "Official Anthropic pricing verified 2026-10-11: https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    "claude-opus-5.5": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 5,
+      "note": "Official Anthropic pricing verified 2026-10-11: https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    "claude-sonnet-5-5": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "note": "Official Anthropic pricing verified 2026-10-11: https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    "claude-sonnet-5.5": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "note": "Official Anthropic pricing verified 2026-10-11: https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    "k3-256k": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "note": "Bare alias emitted by Kimi Code (modelAlias \"kimi-code/k3\" -> \"k3\"). Same rates as kimi-k3."
+    },
+    "cline-gateway-models": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "note": "Cline's own gateway namespaces (`cline-free/*` free tier, `cline-pass/*` flat-rate Cline Pass). Cline's shipped model catalog declares pricing 0 for every id in both namespaces, so a turn there has no marginal per-token cost — same convention as PI_SUBSCRIPTION_SOURCES. The fuzzy entries at the top of `fuzzy` route both prefixes here BEFORE the model names can match a public rate (`cline-pass/glm-5.3` must not bill GLM-5.3 list price, `cline-free/deepseek-v4.1-flash` must not bill DeepSeek). Verified against Cline 0.0.32 (/Applications/Cline.app model catalog + `usageDelta` cost, which stays 0 for both namespaces). A Cline turn that DOES report a positive per-call cost is honoured first because `cline` is listed in SOURCES_WITH_AUTHORITATIVE_COST in pricing/index.js. Remove or re-point these entries when Cline publishes per-token pricing for either namespace."
+    },
+    "claude-fable-5": {
+      "input": 10,
+      "output": 50,
+      "cache_read": 1,
+      "cache_write": 12.5,
+      "note": "Fable 5 \u2014 Anthropic's top tier above Opus. Not yet in LiteLLM. $10/$50 per MTok; cache_read 0.1x, cache_write 1.25x. Remove once LiteLLM carries it."
+    },
+    "claude-opus-5": {
+      "input": 5,
+      "output": 25,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "note": "Opus 5 (public 2026-07). Standard Opus tier, unchanged from 4.6/4.7/4.8: $5/$25 per MTok, cache_read 0.1x, cache_write 1.25x. Not yet in LiteLLM. Fast mode is billed at $10/$50 \u2014 see claude-opus-5-fast. Remove once LiteLLM carries it."
+    },
+    "claude-opus-5-fast": {
+      "input": 10,
+      "output": 50,
+      "cache_read": 1,
+      "cache_write": 12.5,
+      "note": "Opus 5 fast mode (speed=\"fast\", beta fast-mode-2026-02-01) is priced at $10/$50 per MTok \u2014 2x standard Opus. Kept separate so a -fast model id is not silently priced at the standard tier. See claude-opus-5."
+    },
+    "claude-opus-4-8": {
+      "input": 5,
+      "output": 25,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "note": "Opus 4.8 not yet in LiteLLM. Pin to the standard Opus tier (same as 4.6/4.7); remove once LiteLLM carries it."
+    },
+    "claude-opus-4-5": {
+      "input": 5,
+      "output": 25,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "note": "Canonical undated Opus 4.5 alias (LiteLLM bare key, sourced from https://platform.claude.com/docs/en/about-claude/pricing, cached 2026-10-31): standard Opus tier $5/$25 per MTok, cache_read 0.1x, cache_write 1.25x — same rates as claude-opus-4-5-20250414. Previously LiteLLM-only; promoted so cloud account views price the bare id (issue #929)."
+    },
+    "claude-opus-4-6": {
+      "input": 5,
+      "output": 25,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "note": "Opus 4.6 standard tier (LiteLLM entry sourced from https://platform.claude.com/docs/en/about-claude/pricing, cached 2026-10-31): $5/$25 per MTok, cache_read 0.1x, cache_write 1.25x. The edge table pins the same rate; curated pins it so local billing and -thinking variants no longer depend on LiteLLM fuzzy matching (issue #929)."
+    },
+    "claude-sonnet-4-6": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "cache_write": 3.75,
+      "note": "Sonnet 4.6 standard tier (LiteLLM entry sourced from https://platform.claude.com/docs/en/about-claude/pricing, cached 2026-10-31): $3/$15 per MTok, cache_read 0.1x, cache_write 1.25x. The edge table pins the same rate; curated pins it so local billing no longer depends on the LiteLLM cache (issue #929)."
+    },
+    "claude-sonnet-5": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "note": "Sonnet 5. LiteLLM added this model on ~2026-06-30 with matching rates, but pin explicitly so pricing is correct immediately rather than depending on the 24h local pricing-cache refresh cycle."
+    },
+    "claude-haiku-4-5": {
+      "input": 1,
+      "output": 5,
+      "cache_read": 0.1,
+      "cache_write": 1.25,
+      "note": "Canonical undated alias emitted by Cursor. Pin to the same rates as claude-haiku-4-5-20251001 so local cost does not depend on which dated LiteLLM aliases are present in the current cache."
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "note": "Official Anthropic Haiku 5.5 short-context (prompts <=100K) USD/MTok verified 2026-10-22: https://platform.claude.com/docs/en/about-claude/pricing. Prompts over 100K use 5x rates; computeRowCost does not yet split that long-prompt tier. Cache write is the 5-minute rate."
+    },
+    "claude-haiku-5.5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "note": "Dotted alias for claude-haiku-5-5. Same short-context rates."
+    },
+    "gpt-6-astra": {
+      "input": 10,
+      "output": 50,
+      "cache_read": 1,
+      "cache_write": 12.5,
+      "priority_multiplier": 2,
+      "ultrafast_multiplier": 6,
+      "note": "Official Standard USD/MTok rates verified 2026-09-07: https://developers.openai.com/api/docs/models/gpt-6-astra. Requests above 272K input tokens use 2x input/cache and 1.5x output rates; computeRowCost applies this only to observed long-context request subsets. priority_multiplier is the Fast tier, whose published table (20/2/25/100 short, 40/4/50/150 long, verified 2026-09-12) is exactly 2x the Standard rate of the same context tier — it multiplies, it does not replace, the long-context premium. The 2.5x figure in the Codex speed docs is a subscription-credit rate and must not be used here. computeRowCost applies it only to observed priority request subsets; usage whose service tier the logs never recorded stays Standard. Cloud aggregates use Standard short-context estimates because they do not retain per-request context or service tier. Reasoning-effort suffixes use the same base rates."
+    },
+    "gpt-6.1-sol": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "priority_multiplier": 2,
+      "ultrafast_multiplier": 6,
+      "note": "Official Standard USD/MTok rates verified 2026-10-02 (issue #737): https://developers.openai.com/api/docs/models/gpt-6.1-sol. Requests above 272K input use 2x input/cache and 1.5x output rates; Fast mode is 2x the applicable rates. Premiums apply only to observed request subsets. Cloud aggregates remain Standard short-context estimates."
+    },
+    "gpt-6.1-terra": {
+      "input": 1,
+      "output": 5,
+      "cache_read": 0.05,
+      "cache_write": 1.25,
+      "priority_multiplier": 2,
+      "note": "Official Standard USD/MTok rates verified 2026-10-27: https://developers.openai.com/api/docs/models/gpt-6.1-terra and https://developers.openai.com/api/docs/pricing. Short-context (≤272K): $1/$5/$0.05 cached/$1.25 cache write (30m). Requests above 272K input use 2x input/cache and 1.5x output for the full request. Fast mode is 2x Standard; Ultrafast is not published for this model. Premiums apply only to observed request subsets. Cloud aggregates remain Standard short-context estimates."
+    },
+    "gpt-6-sol": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "priority_multiplier": 2,
+      "note": "Official Standard USD/MTok rates verified 2026-09-24: https://developers.openai.com/api/docs/models/gpt-6-sol. Same rules as gpt-6-astra: requests above 272K input tokens use 2x input/cache and 1.5x output for the full request, applied only to observed long-context request subsets; Fast mode is published as 2x the applicable rates (priority_multiplier). Reasoning-effort suffixes use the same base rates."
+    },
+    "gpt-6-luna": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "note": "GPT-6 Luna lightweight tier, Standard USD/MTok (LiteLLM entry sourced from https://developers.openai.com/api/docs/pricing, cached 2026-10-31): $0.10/$0.50 per MTok, $0.01 cache read, $0.125 cache write. Distinct from gpt-5.6-luna. Previously LiteLLM-only, so cloud account views showed it unpriced; promoted so cloud prices it and curated/edge parity guards the key (issue #929)."
+    },
+    "gpt-5.6-sol": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.4,
+      "cache_write": 5,
+      "note": "Official GPT-5.6 Sol standard pricing: $4 input, $0.40 cached input, $5 cache write, and $20 output per MTok. Requests above 272K input are repriced from their preserved per-request long-context subset. Codex emits gpt-5.6-sol plus reasoning-effort variants caught by fuzzy matching."
+    },
+    "gpt-5.6-terra": {
+      "input": 2,
+      "output": 12,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "note": "GPT-5.6 balanced default tier. Official short-context rates: $2/$12 per MTok (not the earlier $2.5/$15 snapshot). See gpt-5.6-sol."
+    },
+    "gpt-5.6-luna": {
+      "input": 0.2,
+      "output": 1.2,
+      "cache_read": 0.02,
+      "cache_write": 0.25,
+      "note": "GPT-5.6 lightweight tier. Official short-context rates: $0.20/$1.20 per MTok (previous curated values $1/$6 overcounted 5x). See gpt-5.6-sol."
+    },
+    "gpt-5.5": {
+      "input": 5,
+      "output": 30,
+      "cache_read": 0.5,
+      "note": "Official Standard USD/MTok rates (LiteLLM entry sourced from https://developers.openai.com/api/docs/pricing, cached 2026-10-31): $5/$30 per MTok, $0.50 cache read, no published cache-write rate. The largest production LiteLLM-only model — codex's primary SKU ($1,118 of cloud account usage showed unpriced between 2026-01-01 and 2026-10-31); promoted so cloud account views price it and curated/edge parity guards the key (issue #929)."
+    },
+    "gpt-5.4": {
+      "input": 2.5,
+      "output": 15,
+      "cache_read": 0.25,
+      "note": "Official Standard USD/MTok rates (LiteLLM entry sourced from https://developers.openai.com/api/docs/pricing, cached 2026-10-31): $2.50/$15 per MTok, $0.25 cache read. The edge table has pinned this rate since before v1.5.1; curated pins the same value so local billing no longer depends on the LiteLLM cache (issue #929). -pro/-nano/-mini keep their own SKUs."
+    },
+    "gpt-5.4-pro": {
+      "input": 30,
+      "output": 180,
+      "cache_read": 3,
+      "note": "Official Pro USD/MTok rates, matching the edge table's gpt-5.4-pro entry ($30/$180, $3 cache read; https://developers.openai.com/api/docs/pricing). Companion pin for the gpt-5.4 promotion: without a curated Pro entry, the curated contained match captures provider-qualified dated snapshots (openai/gpt-5.4-pro-2026-03-05) at the base $2.50/$15 rate before the LiteLLM reverse lookup reaches the Pro SKU — 12x under local vs edge (issue #929)."
+    },
+    "gpt-5.4-mini": {
+      "input": 0.75,
+      "output": 4.5,
+      "cache_read": 0.075,
+      "note": "Official Standard USD/MTok rates (LiteLLM entry sourced from https://developers.openai.com/api/docs/pricing, cached 2026-10-31): $0.75/$4.50 per MTok, $0.075 cache read. Same promotion rationale as gpt-5.4 (issue #929)."
+    },
+    "gpt-5.2": {
+      "input": 1.75,
+      "output": 14,
+      "cache_read": 0.175,
+      "note": "Official Standard USD/MTok rates (LiteLLM entry sourced from https://developers.openai.com/api/docs/pricing, cached 2026-10-31): $1.75/$14 per MTok, $0.175 cache read. Same promotion rationale as gpt-5.4 (issue #929); -pro stays on its own 10x LiteLLM SKU."
+    },
+    "gpt-5.3-codex-spark": {
+      "input": 1.75,
+      "output": 14,
+      "cache_read": 0.175,
+      "note": "Codex spark capacity tier; not a separate LiteLLM key. Local (LiteLLM reverse-substring) and the edge matcher both bill it at the base gpt-5.3-codex rate ($1.75/$14, $0.175 cache read, https://developers.openai.com/api/docs/pricing); the exact entry pins that resolution on both sides (issue #929)."
+    },
+    "kiro-agent": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "cache_write": 3.75
+    },
+    "kiro-cli-agent": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "cache_write": 3.75
+    },
+    "hy3-preview-agent": {
+      "input": 0.167,
+      "output": 0.556,
+      "cache_read": 0.056,
+      "cache_write": 0.167,
+      "note": "Tencent Hunyuan Hy3 preview (CodeBuddy/WorkBuddy backend). Official TokenHub rate: 1.2 / 0.4 (cache hit) / 4.0 RMB per MTok in/read/out, converted at ~7.2 RMB/USD. DeepSeek-style cache: no write surcharge, so cache_write = input."
+    },
+    "hy3-preview": {
+      "input": 0.167,
+      "output": 0.556,
+      "cache_read": 0.056,
+      "cache_write": 0.167,
+      "note": "See hy3-preview-agent."
+    },
+    "qwen3.8-flash": {
+      "input": 0.15,
+      "output": 0.47,
+      "cache_read": 0.016,
+      "cache_write": 0.2,
+      "note": "Alibaba Model Studio Singapore (International), USD per MTok, verified 2026-09-29: https://www.alibabacloud.com/help/en/model-studio/qwen3-8-flash . Reference API estimate; other regions/providers can have different rates. Issue #715."
+    },
+    "qwen3.8-max": {
+      "input": 2,
+      "output": 6,
+      "cache_read": 0.17,
+      "cache_write": 2.5,
+      "note": "Alibaba Model Studio Singapore (International), USD per MTok, verified 2026-10-25: https://www.alibabacloud.com/help/en/model-studio/model-pricing and https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max . Reference API estimate; other regions/providers can have different rates. Issue #744."
+    },
+    "qwen3.8-max-0902": {
+      "input": 2,
+      "output": 6,
+      "cache_read": 0.17,
+      "cache_write": 2.5,
+      "note": "Alibaba Model Studio Singapore (International), USD per MTok, verified 2026-10-25: https://www.alibabacloud.com/help/en/model-studio/model-pricing and https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max . Reference API estimate; other regions/providers can have different rates. Issue #744. Dated SKU qwen3.8-max-0902 shares Singapore International list rates."
+    },
+    "qwen3.8-max-2026-09-02": {
+      "input": 2,
+      "output": 6,
+      "cache_read": 0.17,
+      "cache_write": 2.5,
+      "note": "Alibaba Model Studio Singapore (International), USD per MTok, verified 2026-10-25: https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max . Alias of qwen3.8-max-0902; same Singapore International list rates. Issue #744."
+    },
+    "hy4-preview": {
+      "input": 0.833,
+      "output": 2.5,
+      "cache_read": 0.042,
+      "cache_write": 0.833,
+      "note": "Tencent Hunyuan Hy4 preview (released 2026-08-28; WorkBuddy/CodeBuddy backend). Official TokenHub rate: 6 / 0.3 (cache hit) / 18 RMB per MTok in/read/out, converted at ~7.2 RMB/USD like hy3-preview. No published cache-write price, so cache_write = input. Issue #633."
+    },
+    "hy4-preview-agent": {
+      "input": 0.833,
+      "output": 2.5,
+      "cache_read": 0.042,
+      "cache_write": 0.833,
+      "note": "See hy4-preview. CodeBuddy's auto-router emits the -agent suffixed form."
+    },
+    "composer-1": {
+      "input": 1.25,
+      "output": 10,
+      "cache_read": 0.125
+    },
+    "composer-1.5": {
+      "input": 3.5,
+      "output": 17.5,
+      "cache_read": 0.35
+    },
+    "composer-2": {
+      "input": 0.5,
+      "output": 2.5,
+      "cache_read": 0.2
+    },
+    "composer-2-fast": {
+      "input": 1.5,
+      "output": 7.5,
+      "cache_read": 0.15
+    },
+    "composer-2.5": {
+      "input": 0.5,
+      "output": 2.5,
+      "cache_read": 0.2,
+      "note": "Cursor Composer 2.5. Cursor Models & Pricing: $0.50/M input, $0.20/M cached input, $2.50/M output; no cache-write rate is published. https://cursor.com/docs/models-and-pricing"
+    },
+    "composer-2.5-fast": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.5,
+      "note": "Cursor Composer 2.5 Fast. Cursor Models & Pricing: $3/M input, $0.50/M cached input, $15/M output. Kept separate from the cheaper base SKU."
+    },
+    "gemini-4-argon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 0,
+      "note": "Google Gemini 4 Argon introductory list rate (through 2026-11-30) matching Cursor Other Models pool: $2/M input, $0.10/M cached input, $10/M output. Effort suffixes (-high/-medium/-low/-minimal) are stripped by normalizeCursorModel. Sources: https://cursor.com/docs/models-and-pricing and https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    "gemini-3-flash-preview": {
+      "input": 0.5,
+      "output": 3,
+      "cache_read": 0.05,
+      "note": "LiteLLM entry (sourced from https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing, cached 2026-10-31): $0.50/$3 per MTok, $0.05 cache read, no published cache-write rate. Same rate the edge table already pins; promoted so curated/edge parity guards the key (issue #929)."
+    },
+    "MiniMax-M2.7": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.06,
+      "cache_write": 0.375
+    },
+    "MiniMax-M2.7-highspeed": {
+      "input": 0.6,
+      "output": 2.4,
+      "cache_read": 0.06,
+      "cache_write": 0.375
+    },
+    "minimax-m3": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.06,
+      "cache_write": 0
+    },
+    "deepseek-v4-flash": {
+      "input": 0.44,
+      "output": 1.32,
+      "cache_read": 0.014,
+      "cache_write": 0.44
+    },
+    "deepseek-v4-pro": {
+      "input": 1.32,
+      "output": 3.96,
+      "cache_read": 0.044,
+      "cache_write": 1.32
+    },
+    "deepseek-v4-flash-vision-exp": {
+      "input": 0.44,
+      "output": 1.32,
+      "cache_read": 0.014,
+      "cache_write": 0.44
+    },
+    "deepseek-v4.1-flash": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.006,
+      "cache_write": 0.3,
+      "note": "DeepSeek V4.1 Flash (official API id deepseek-flash, released 2026-09-10). deepseek-v4.1-flash is the id reported by OpenRouter, Command Code and WorkBuddy. Peak rates per https://api-docs.deepseek.com/quick_start/pricing/ ($0.30 / $1.20 / $0.006 cache read per MTok); computeRowCost halves them off-peak like the other DeepSeek V4 entries."
+    },
+    "deepseek-flash": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.006,
+      "cache_write": 0.3,
+      "note": "Official DeepSeek API id for DeepSeek-V4.1-Flash. Same rates as deepseek-v4.1-flash."
+    },
+    "deepseek-chat": {
+      "input": 0.14,
+      "output": 0.28,
+      "cache_read": 0.0028,
+      "cache_write": 0.14
+    },
+    "grok-build": {
+      "input": 1.25,
+      "output": 2.5,
+      "cache_read": 0.2,
+      "note": "Grok Build TUI fallback estimate for sessions without turn_completed.usage. Preferred path is turn_completed usage with per-model modelUsage splits."
+    },
+    "cursor-grok-4.5": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.5 base rate. Cursor Models & Pricing: $2/M input, $0.50/M cached input, $6/M output; no cache-write rate is published."
+    },
+    "cursor-grok-4.5-fast": {
+      "input": 4.0,
+      "output": 18.0,
+      "cache_read": 1.0,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.5 Fast rate. Cursor publishes $4/M input and $18/M output; the Cursor usage breakdown reports $1/M cached input. Kept separate from the cheaper base SKU."
+    },
+    "cursor-grok-4.6": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.6 base rate. Cursor Models & Pricing: $2/M input, $0.50/M cached input, $6/M output; no cache-write rate is published."
+    },
+    "cursor-grok-4.6-fast": {
+      "input": 4.0,
+      "output": 12.0,
+      "cache_read": 1.0,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.6 Fast rate. Cursor publishes $4/M input, $1/M cached input, $12/M output. Kept separate from the cheaper base SKU."
+    },
+    "cursor-grok-4.7": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.7 base rate. Cursor Models & Pricing: $2/M input, $0.50/M cached input, $6/M output. Long-context (>256k) premiums are not applied here yet because Cursor CSV rows do not expose per-request long-context flags."
+    },
+    "cursor-grok-4.7-fast": {
+      "input": 4.0,
+      "output": 12.0,
+      "cache_read": 1.0,
+      "cache_write": 0,
+      "note": "Cursor Grok 4.7 Fast rate. Cursor publishes $4/M input, $1/M cached input, $12/M output. Kept separate from the cheaper base SKU."
+    },
+    "grok-4-0709": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.75
+    },
+    "grok-4": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.75
+    },
+    "grok-4-latest": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.75
+    },
+    "grok-4-fast": {
+      "input": 0.2,
+      "output": 0.5,
+      "cache_read": 0.05
+    },
+    "grok-4-fast-reasoning": {
+      "input": 0.2,
+      "output": 0.5,
+      "cache_read": 0.05
+    },
+    "grok-4-fast-non-reasoning": {
+      "input": 0.2,
+      "output": 0.5,
+      "cache_read": 0.05
+    },
+    "grok-4-1-fast-non-reasoning": {
+      "input": 0.2,
+      "output": 0.5,
+      "cache_read": 0.05
+    },
+    "deepseek-reasoner": {
+      "input": 0.14,
+      "output": 0.28,
+      "cache_read": 0.0028,
+      "cache_write": 0.14
+    },
+    "kimi-for-coding": {
+      "input": 0.6,
+      "output": 2,
+      "cache_read": 0.15
+    },
+    "kimi-k2.5": {
+      "input": 0.6,
+      "output": 2,
+      "cache_read": 0.15
+    },
+    "kimi-k2.5-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "kimi-k2.6": {
+      "input": 0.95,
+      "output": 4,
+      "cache_read": 0.16
+    },
+    "kimi-k2.7-code": {
+      "input": 0.95,
+      "output": 4,
+      "cache_read": 0.19
+    },
+    "kimi-k3.1-pro": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2,
+      "note": "Kimi K3.1 Pro (API id kimi-k3.1-pro). Official USD list from https://platform.kimi.ai/ : $2/M input, $10/M output, $2/M cache write (default 5m TTL), $0.20/M cache hit. Flat 1M context; no context-length tiers. Verified 2026-10-25. Distinct from kimi-k3 ($3/$15)."
+    },
+    "kimi-k3.1-pro-highspeed": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 4,
+      "note": "Kimi K3.1 Pro Highspeed (API id kimi-k3.1-pro-highspeed). Official USD list from https://platform.kimi.ai/ : $4/M input, $20/M output, $4/M cache write (default 5m TTL), $0.20/M cache hit. Same intelligence as K3.1 Pro at higher speed. Verified 2026-10-25."
+    },
+    "k3.1-pro": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2,
+      "note": "Bare/compact alias for kimi-k3.1-pro. Same official rates."
+    },
+    "k3.1pro": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2,
+      "note": "Compact alias (no hyphen) for kimi-k3.1-pro. Same official rates."
+    },
+    "k3.1-pro-highspeed": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 4,
+      "note": "Bare alias for kimi-k3.1-pro-highspeed. Same official rates."
+    },
+    "k3.1pro-highspeed": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 4,
+      "note": "Compact alias for kimi-k3.1-pro-highspeed. Same official rates."
+    },
+    "kimi-k3": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "note": "Kimi K3 (released 2026-07-16). Reported API rates: $3/M input, $15/M output, $0.30/M cached input (0.1x). Not yet in LiteLLM; remove once it carries k3. Kimi Code records the alias as bare \"k3\" (kimi-code/k3), hence the separate exact key below."
+    },
+    "k3": {
+      "input": 3,
+      "output": 15,
+      "cache_read": 0.3,
+      "note": "Bare alias emitted by Kimi Code (modelAlias \"kimi-code/k3\" -> \"k3\"). Same rates as kimi-k3."
+    },
+    "glm-5.3": {
+      "input": 1.4,
+      "output": 4.4,
+      "cache_read": 0.26
+    },
+    "glm-5.3-flash": {
+      "input": 0.15,
+      "output": 0.5,
+      "cache_read": 0.03
+    },
+    "glm-5.2": {
+      "input": 1.4,
+      "output": 4.4,
+      "cache_read": 0.26
+    },
+    "glm-5.1": {
+      "input": 1.4,
+      "output": 4.4,
+      "cache_read": 0.26
+    },
+    "glm-5": {
+      "input": 1.0,
+      "output": 3.2,
+      "cache_read": 0.2
+    },
+    "glm-5-turbo": {
+      "input": 1.2,
+      "output": 4.0,
+      "cache_read": 0.24
+    },
+    "glm-4.7": {
+      "input": 0.6,
+      "output": 2.2,
+      "cache_read": 0.11
+    },
+    "glm-4.7-flashx": {
+      "input": 0.07,
+      "output": 0.4,
+      "cache_read": 0.01
+    },
+    "glm-4.7-flash": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "glm-4.6": {
+      "input": 0.6,
+      "output": 2.2,
+      "cache_read": 0.11
+    },
+    "glm-4.5": {
+      "input": 0.6,
+      "output": 2.2,
+      "cache_read": 0.11
+    },
+    "glm-4.5-x": {
+      "input": 2.2,
+      "output": 8.9,
+      "cache_read": 0.45
+    },
+    "glm-4.5-air": {
+      "input": 0.2,
+      "output": 1.1,
+      "cache_read": 0.03
+    },
+    "glm-4.5-airx": {
+      "input": 1.1,
+      "output": 4.5,
+      "cache_read": 0.22
+    },
+    "glm-4.5-flash": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "glm-4.7-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "nemotron-3-super-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "mimo-v2-pro-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "mimo-v2.5": {
+      "input": 0.4,
+      "output": 2,
+      "cache_read": 0.08,
+      "note": "Xiaomi MiMo v2.5 (queue rows report the bare id; LiteLLM keys are provider-qualified). Rates match the deepinfra entry — the lexicographically smallest provider key the matcher deterministically picks: $0.40/$2 per MTok, $0.08 cache read, no published cache-write rate. The edge table pinned this exact rate after the kimi-k2.6/mimo profile-modal incident; curated pins the same value so local billing no longer depends on LiteLLM prefix-strip (issue #929)."
+    },
+    "mimo-v2.5-pro": {
+      "input": 1,
+      "output": 3,
+      "cache_read": 0.2,
+      "note": "Xiaomi MiMo v2.5 Pro (deepinfra is the lexicographically smallest LiteLLM provider key, matching the edge table): $1/$3 per MTok, $0.20 cache read. Exact entry required alongside mimo-v2.5 so the contained-exact fallback cannot bill -pro at the base v2.5 rate (issue #929)."
+    },
+    "muse-spark-1.2-contributor": {
+      "input": 0.1,
+      "output": 0.2,
+      "cache_read": 0.002,
+      "note": "Paid Muse contributor SKU. LiteLLM provider-qualified entries agree on $0.10/$0.20 per MTok, $0.002 cache read (meta and opencode_go both list these rates, cached 2026-10-31). Previously LiteLLM prefix-strip-only, so cloud account views showed it unpriced; promoted so cloud prices it and curated/edge parity guards the key (issue #929). The -free SKU below stays $0."
+    },
+    "muse-spark-1.3-contributor": {
+      "input": 0.1,
+      "output": 0.2,
+      "cache_read": 0.002,
+      "note": "See muse-spark-1.2-contributor — same paid contributor SKU at the same verified rates (issue #929)."
+    },
+    "muse-spark-1.2-contributor-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "note": "Muse contributor free SKU. Also covered by matcher -free suffix; exact entry keeps status=free (issue #744)."
+    },
+    "muse-spark-1.3-contributor-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "note": "Muse contributor free SKU. Also covered by matcher -free suffix; exact entry keeps status=free (issue #744)."
+    },
+    "minimax-m2.1-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0
+    },
+    "MiniMax-M2.1": {
+      "input": 0.5,
+      "output": 3,
+      "cache_read": 0.05
+    },
+    "antigravity-gpt-oss-120b": {
+      "input": 2.5,
+      "output": 10,
+      "cache_read": 0,
+      "note": "Antigravity bridge alias. Approximate with GPT-4o-class pricing until Google exposes route-specific billing metadata."
+    },
+    "sakana/fugu-ultra": {
+      "input": 5,
+      "output": 30,
+      "cache_read": 0.5,
+      "cache_write": 5,
+      "note": "Sakana Fugu Ultra \u2014 multi-agent orchestration via an OpenAI-compatible API (sakana.ai PAYG + OpenRouter), used through Codex/Cursor/Cline/ZCode etc. OpenRouter rates: $5/$30 per MTok in/out, cache_read $0.5/M; no published cache-write surcharge, so cache_write = input. Subscriptions ($20/$100/$200) bill against this token-equivalent rate."
+    },
+    "longcat-2.0": {
+      "input": 0.278,
+      "output": 1.111,
+      "cache_read": 0.00556,
+      "cache_write": 0.278,
+      "note": "Meituan LongCat-2.0, seen via ZCode custom-provider routing (issue #276). Official longcat.chat/platform launch-promo rate: RMB 2 / 0.04 (cache hit) / 8 per MTok in/read/out, converted at ~7.2 RMB/USD. Standard list price is RMB 5/0.10/20 (2.5x) once the promo ends \u2014 re-verify against longcat.chat/platform/docs/zh/Pricing/LongCat-2.0.html before assuming either is permanent. DeepSeek-style cache: no write surcharge, so cache_write = input."
+    },
+    "step-3.7-flash": {
+      "input": 0.2,
+      "output": 1.15,
+      "cache_read": 0.04,
+      "cache_write": 0.2,
+      "note": "StepFun Step 3.7 Flash (issue #283). Official platform.stepfun.ai pricing: $0.20 / $0.04 (cache hit) / $1.15 per MTok in/read/out. No published cache-write surcharge, so cache_write = input."
+    },
+    "step-3.5-flash": {
+      "input": 0.1,
+      "output": 0.3,
+      "cache_read": 0.02,
+      "cache_write": 0.1,
+      "note": "StepFun Step 3.5 Flash incl. dated snapshots like step-3.5-flash-2603 (issue #283). Official platform.stepfun.ai pricing: $0.10 / $0.02 (cache hit) / $0.30 per MTok in/read/out. No published cache-write surcharge, so cache_write = input."
+    },
+    "grok-4.5-build": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "cache_write": 0,
+      "note": "Grok Build paid SKU (grok-4.5-build from turn_completed.modelUsage). Rates aligned with xAI/Cursor Grok 4.5 until a dedicated Build price list is published."
+    },
+    "grok-build-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "note": "Grok Build free tier (canonical model id). $0 marginal cost. Prefer this over grok-4.5-build-free so pricing lookup cannot fuzzy-match paid grok-4.5."
+    },
+    "grok-4.5-build-free": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "note": "Alias for free Build SKU as labeled in Grok updates.jsonl modelUsage. Canonical storage id is grok-build-free."
+    }
+  },
+  "alias": {
+    "auto": "composer-1"
+  },
+  "source_exact": {
+    "acode": {
+      "spark-x2.5": { "input": 0.13, "output": 0.50, "cache_read": 0.02, "cache_write": 0.13 },
+      "spark-x2.5-4b": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "spark-x2.5-1.7b": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xopglm53": { "input": 1.11, "output": 3.89, "cache_read": 0.28, "cache_write": 1.11 },
+      "xopdeepseekv4pro0813": { "input": 1.25, "output": 3.75, "cache_read": 0.04, "cache_write": 1.25 },
+      "xopdeepseekv4flash0731": { "input": 0.14, "output": 0.28, "cache_read": 0.03, "cache_write": 0.14 },
+      "xopkimik27code": { "input": 0.90, "output": 3.75, "cache_read": 0.90, "cache_write": 0.90 },
+      "xopglm52": { "input": 1.11, "output": 3.89, "cache_read": 0.28, "cache_write": 1.11 },
+      "xopdeepseekv4flash": { "input": 0.14, "output": 0.28, "cache_read": 0.03, "cache_write": 0.14 },
+      "xopkimik26": { "input": 0.90, "output": 3.75, "cache_read": 0.18, "cache_write": 0.90 },
+      "xopdeepseekv4pro": { "input": 1.67, "output": 3.33, "cache_read": 0.14, "cache_write": 1.67 },
+      "xopqwen36v35b": { "input": 0.15, "output": 0.90, "cache_read": 0.15, "cache_write": 0.15 },
+      "xophunyuan7bmt": { "input": 0.07, "output": 0.28, "cache_read": 0.07, "cache_write": 0.07 },
+      "xoppaddleocrv16": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xsparkx2flash": { "input": 0.14, "output": 0.28, "cache_read": 0.14, "cache_write": 0.14 },
+      "xopglm51": { "input": 1.11, "output": 3.89, "cache_read": 0.22, "cache_write": 1.11 },
+      "xsparkx2": { "input": 0.42, "output": 0.42, "cache_read": 0.42, "cache_write": 0.42 },
+      "xop35qwen2b": { "input": 0.03, "output": 0.06, "cache_read": 0.03, "cache_write": 0.03 },
+      "xopqwen35397b": { "input": 0.17, "output": 1.00, "cache_read": 0.17, "cache_write": 0.17 },
+      "xminimaxm25": { "input": 0.29, "output": 1.17, "cache_read": 0.29, "cache_write": 0.29 },
+      "xopglm5": { "input": 0.83, "output": 3.06, "cache_read": 0.17, "cache_write": 0.83 },
+      "xopkimik25": { "input": 0.56, "output": 2.92, "cache_read": 0.56, "cache_write": 0.56 },
+      "xopdeepseekv32": { "input": 0.14, "output": 0.21, "cache_read": 0.14, "cache_write": 0.14 },
+      "xop3qwencodernext": { "input": 0.35, "output": 1.39, "cache_read": 0.35, "cache_write": 0.35 },
+      "xopglmv47flash": { "input": 0.14, "output": 0.21, "cache_read": 0.14, "cache_write": 0.14 },
+      "xopglm47blth2": { "input": 0.56, "output": 2.22, "cache_read": 0.56, "cache_write": 0.56 },
+      "xop3qwen32bvl": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "xopdeepseekocr": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xophunyuanocr": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xop3qwen80bnext": { "input": 0.08, "output": 0.33, "cache_read": 0.08, "cache_write": 0.08 },
+      "xop3qwen235b2507": { "input": 0.17, "output": 1.67, "cache_read": 0.17, "cache_write": 0.17 },
+      "xop3qwen30b2507": { "input": 0.06, "output": 0.63, "cache_read": 0.06, "cache_write": 0.06 },
+      "xop3qwen235b": { "input": 0.17, "output": 1.67, "cache_read": 0.17, "cache_write": 0.17 },
+      "xop3qwen30b": { "input": 0.06, "output": 0.63, "cache_read": 0.06, "cache_write": 0.06 },
+      "xop3qwen32b": { "input": 0.17, "output": 1.67, "cache_read": 0.17, "cache_write": 0.17 },
+      "xdeepseekv3": { "input": 0.22, "output": 0.89, "cache_read": 0.22, "cache_write": 0.22 },
+      "xdeepseekr1": { "input": 0.44, "output": 1.78, "cache_read": 0.44, "cache_write": 0.44 },
+      "xdeepseekr1qwen32b": { "input": 0.22, "output": 0.67, "cache_read": 0.22, "cache_write": 0.22 },
+      "xopkimik2blth": { "input": 0.56, "output": 2.22, "cache_read": 0.56, "cache_write": 0.56 },
+      "xopkimik2blins": { "input": 0.56, "output": 2.22, "cache_read": 0.56, "cache_write": 0.56 },
+      "xop3qwen8breranker": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xop3qwen8bembedding": { "input": 0.00, "output": 0.00, "cache_read": 0.00, "cache_write": 0.00 },
+      "xop3qwen0b6": { "input": 0.04, "output": 0.42, "cache_read": 0.04, "cache_write": 0.04 },
+      "xop3qwen4b": { "input": 0.04, "output": 0.42, "cache_read": 0.04, "cache_write": 0.04 },
+      "xqwen257bchat": { "input": 0.07, "output": 0.14, "cache_read": 0.07, "cache_write": 0.07 },
+      "xop3qwen14b": { "input": 0.14, "output": 1.39, "cache_read": 0.14, "cache_write": 0.14 },
+      "xop3qwen8b": { "input": 0.07, "output": 0.69, "cache_read": 0.07, "cache_write": 0.07 },
+      "xsparkprox": { "input": 1.11, "output": 5.56, "cache_read": 1.11, "cache_write": 1.11 },
+      "xspark13b6k": { "input": 0.28, "output": 0.83, "cache_read": 0.28, "cache_write": 0.28 },
+      "spark mini": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "spark mini instruct": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "spark tiny": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "internlm2.5_7b_chat": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "internlm2.5_1.8b_chat": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_7b_base": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "xsqwen2d53b": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_3b_base": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_1.5b_instruct": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_1.5b_base": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_0.5b_instruct": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "qwen_v2.5_0.5b_base": { "input": 0.28, "output": 1.11, "cache_read": 0.28, "cache_write": 0.28 },
+      "xsqwenv2s1b5c": { "input": 0.14, "output": 0.28, "cache_read": 0.14, "cache_write": 0.14 },
+      "xsqwenv2s0b5c": { "input": 0.28, "output": 0.56, "cache_read": 0.28, "cache_write": 0.28 },
+      "xqwen14bchat": { "input": 0.28, "output": 0.83, "cache_read": 0.28, "cache_write": 0.28 }
+    }
+  },
+  "fuzzy": [
+    {
+      "match": "cline-free/",
+      "ref": "cline-gateway-models"
+    },
+    {
+      "match": "cline-pass/",
+      "ref": "cline-gateway-models"
+    },
+    {
+      "match": "gpt-6-astra",
+      "ref": "gpt-6-astra"
+    },
+    {
+      "match": "gpt-6.1-sol",
+      "ref": "gpt-6.1-sol"
+    },
+    {
+      "match": "gpt-6.1-terra",
+      "ref": "gpt-6.1-terra"
+    },
+    {
+      "match": "gpt-6-sol",
+      "ref": "gpt-6-sol"
+    },
+    {
+      "match": "gpt-5.6-sol",
+      "ref": "gpt-5.6-sol"
+    },
+    {
+      "match": "gpt-5.6-terra",
+      "ref": "gpt-5.6-terra"
+    },
+    {
+      "match": "gpt-5.6-luna",
+      "ref": "gpt-5.6-luna"
+    },
+    {
+      "match": "gpt-5.6",
+      "ref": "gpt-5.6-sol"
+    },
+    {
+      "match": "kiro",
+      "ref": "kiro-cli-agent"
+    },
+    {
+      "match": "hy3",
+      "ref": "hy3-preview-agent"
+    },
+    {
+      "match": "hy4",
+      "ref": "hy4-preview"
+    },
+    {
+      "match": "composer",
+      "ref": "composer-1"
+    },
+    {
+      "match": "haiku-5-5",
+      "ref": "claude-haiku-5-5"
+    },
+    {
+      "match": "haiku-5.5",
+      "ref": "claude-haiku-5.5"
+    },
+    {
+      "match": "claude-opus-5-fast",
+      "ref": "claude-opus-5-fast"
+    },
+    {
+      "match": "claude-opus-5",
+      "ref": "claude-opus-5"
+    },
+    {
+      "match": "claude-opus-4-8",
+      "ref": "claude-opus-4-8"
+    },
+    {
+      "match": "minimax-m3",
+      "ref": "minimax-m3"
+    },
+    {
+      "match": "minimax-m2.7-highspeed",
+      "ref": "MiniMax-M2.7-highspeed"
+    },
+    {
+      "match": "minimax-m2.7",
+      "ref": "MiniMax-M2.7"
+    },
+    {
+      "match": "deepseek-v4.1-flash",
+      "ref": "deepseek-v4.1-flash"
+    },
+    {
+      "match": "deepseek-flash",
+      "ref": "deepseek-flash"
+    },
+    {
+      "match": "deepseek-v4-flash",
+      "ref": "deepseek-v4-flash"
+    },
+    {
+      "match": "deepseek-v4-pro",
+      "ref": "deepseek-v4-pro"
+    },
+    {
+      "match": "kimi-k2.7-code",
+      "ref": "kimi-k2.7-code"
+    },
+    {
+      "match": "kimi-k3.1-pro-highspeed",
+      "ref": "kimi-k3.1-pro-highspeed"
+    },
+    {
+      "match": "k3.1-pro-highspeed",
+      "ref": "kimi-k3.1-pro-highspeed"
+    },
+    {
+      "match": "k3.1pro-highspeed",
+      "ref": "kimi-k3.1-pro-highspeed"
+    },
+    {
+      "match": "kimi-k3.1-pro",
+      "ref": "kimi-k3.1-pro"
+    },
+    {
+      "match": "k3.1-pro",
+      "ref": "kimi-k3.1-pro"
+    },
+    {
+      "match": "k3.1pro",
+      "ref": "kimi-k3.1-pro"
+    },
+    {
+      "match": "kimi-k3",
+      "ref": "kimi-k3"
+    },
+    {
+      "match": "kimi-k2.6",
+      "ref": "kimi-k2.6"
+    },
+    {
+      "match": "kimi",
+      "ref": "kimi-k2.5"
+    },
+    {
+      "match": "glm-4.5-airx",
+      "ref": "glm-4.5-airx"
+    },
+    {
+      "match": "glm-4.5-air",
+      "ref": "glm-4.5-air"
+    },
+    {
+      "match": "glm-4.5-x",
+      "ref": "glm-4.5-x"
+    },
+    {
+      "match": "glm-4.5-flash",
+      "ref": "glm-4.5-flash"
+    },
+    {
+      "match": "glm-4.5",
+      "ref": "glm-4.5"
+    },
+    {
+      "match": "glm-4.7-flashx",
+      "ref": "glm-4.7-flashx"
+    },
+    {
+      "match": "glm-4.7-flash",
+      "ref": "glm-4.7-flash"
+    },
+    {
+      "match": "glm-4.7",
+      "ref": "glm-4.7"
+    },
+    {
+      "match": "glm-4.6",
+      "ref": "glm-4.6"
+    },
+    {
+      "match": "glm-5.3-flash",
+      "ref": "glm-5.3-flash"
+    },
+    {
+      "match": "glm-5.3",
+      "ref": "glm-5.3"
+    },
+    {
+      "match": "glm-5-turbo",
+      "ref": "glm-5-turbo"
+    },
+    {
+      "match": "glm-5.2",
+      "ref": "glm-5.2"
+    },
+    {
+      "match": "glm-5.1",
+      "ref": "glm-5.1"
+    },
+    {
+      "match": "glm-5",
+      "ref": "glm-5"
+    },
+    {
+      "match": "fugu",
+      "ref": "sakana/fugu-ultra"
+    },
+    {
+      "match": "longcat",
+      "ref": "longcat-2.0"
+    },
+    {
+      "match": "step-3.7-flash",
+      "ref": "step-3.7-flash"
+    },
+    {
+      "match": "step-3.5-flash",
+      "ref": "step-3.5-flash"
+    },
+    {
+      "match": "stepfun",
+      "ref": "step-3.7-flash"
+    }
+  ]
+}
