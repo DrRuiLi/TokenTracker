@@ -2167,18 +2167,29 @@ trcc.push.label,ui,TrccPage,TrccPage,push_label,Push to side screen,,active
 trcc.push.hint,ui,TrccPage,TrccPage,push_hint,Turning this off releases the USB device.,,active
 trcc.rotation.label,ui,TrccPage,TrccPage,rotation_label,Rotation,,active
 trcc.mirror.label,ui,TrccPage,TrccPage,mirror_label,Mirror,,active
+trcc.theme.label,ui,TrccPage,TrccPage,theme_label,Panel theme,,active
+trcc.theme.deep-space,ui,TrccPage,TrccPage,theme_deep_space,Deep Space,,active
+trcc.theme.light,ui,TrccPage,TrccPage,theme_light,Light,,active
+trcc.theme.aurora,ui,TrccPage,TrccPage,theme_aurora,Aurora,,active
+trcc.theme.lava,ui,TrccPage,TrccPage,theme_lava,Lava,,active
+trcc.theme.violet,ui,TrccPage,TrccPage,theme_violet,Violet,,active
+trcc.layout.label,ui,TrccPage,TrccPage,layout_label,Layout,,active
+trcc.layout.classic,ui,TrccPage,TrccPage,layout_classic,Classic,,active
+trcc.layout.token-focus,ui,TrccPage,TrccPage,layout_token_focus,Usage focus,,active
+trcc.layout.system-first,ui,TrccPage,TrccPage,layout_system_first,System first,,active
+trcc.layout.constellation,ui,TrccPage,TrccPage,layout_constellation,Constellation,,active
+trcc.layout.signal-wave,ui,TrccPage,TrccPage,layout_signal_wave,Signal wave,,active
+trcc.layout.telemetry,ui,TrccPage,TrccPage,layout_telemetry,Telemetry console,,active
 trcc.interval.label,ui,TrccPage,TrccPage,interval_label,Redraw interval (s),,active
 trcc.sensor_interval.label,ui,TrccPage,TrccPage,sensor_interval_label,Temp / power sample (s),,active
 trcc.sensor_interval.hint,ui,TrccPage,TrccPage,sensor_interval_hint,Separate from the redraw interval. Only CPU temperature and power use this.,,active
-trcc.cursor_refresh.label,ui,TrccPage,TrccPage,cursor_refresh_label,Cursor usage refresh (s),,active
-trcc.cursor_refresh.now,ui,TrccPage,TrccPage,cursor_refresh_now,Refresh now,,active
 trcc.close_action.label,ui,TrccPage,TrccPage,close_action_label,When the app window is closed,,active
 trcc.section.status,ui,TrccPage,TrccPage,section_status,Status,,active
 trcc.status.device,ui,TrccPage,TrccPage,status_device,Device,,active
 trcc.status.connected,ui,TrccPage,TrccPage,status_connected,PM={{pm}} SUB={{sub}} · {{w}}×{{h}} · {{fps}} fps,,active
 trcc.status.connecting,ui,TrccPage,TrccPage,status_connecting,Connecting…,,active
 trcc.status.stopped,ui,TrccPage,TrccPage,status_stopped,Stopped (USB released),,active
-trcc.status.cursor,ui,TrccPage,TrccPage,status_cursor,Cursor usage,,active
+trcc.status.cursor,ui,TrccPage,TrccPage,status_cursor,Merged token usage,,active
 trcc.status.cursor_busy,ui,TrccPage,TrccPage,status_cursor_busy,Refreshing…,,active
 trcc.status.cursor_ok,ui,TrccPage,TrccPage,status_cursor_ok,Last success {{time}},,active
 trcc.status.cursor_never,ui,TrccPage,TrccPage,status_cursor_never,Not fetched yet,,active

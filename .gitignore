@@ -8,6 +8,12 @@ build/
 .tmp/
 dashboard/tmp/
 *.tsbuildinfo
+# Windows combined installer outputs (also ignored by TokenTrackerWin/.gitignore)
+/TokenTrackerWin/bin/
+/TokenTrackerWin/obj/
+/TokenTrackerWin/EmbeddedServer/
+/TokenTrackerWin/publish/
+/TokenTrackerWin/installer/Output/
 # Test coverage output (vitest/istanbul) — regenerated on every run
 coverage/
 .nyc_output/

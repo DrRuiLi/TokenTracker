@@ -353,6 +353,34 @@ export function TrccPage() {
                       />
                     }
                   />
+                  {meta.theme_presets?.length ? (
+                    <SettingsRow
+                      label={copy("trcc.theme.label")}
+                      control={
+                        <SegmentedControl
+                          value={s.theme_preset}
+                          onChange={(v) => void patch({ theme_preset: v })}
+                          options={meta.theme_presets.map((preset) => ({
+                            value: preset.id,
+                            label: copy(`trcc.theme.${preset.id}`),
+                          }))}
+                        />
+                      }
+                    />
+                  ) : null}
+                  <SettingsRow
+                    label={copy("trcc.layout.label")}
+                    control={
+                      <SegmentedControl
+                        value={s.layout || "classic"}
+                        onChange={(v) => void patch({ layout: v })}
+                        options={(meta.layouts || []).map((layout) => ({
+                          value: layout.id,
+                          label: copy(`trcc.layout.${layout.id}`),
+                        }))}
+                      />
+                    }
+                  />
                   <SettingsRow
                     label={copy("trcc.interval.label")}
                     control={
@@ -382,31 +410,6 @@ export function TrccPage() {
                       }
                     />
                   ) : null}
-                  <SettingsRow
-                    label={copy("trcc.cursor_refresh.label")}
-                    control={
-                      <div className="flex items-center gap-2">
-                        <NumberField
-                          value={s.cursor_refresh}
-                          min={meta.ranges.cursor_refresh[0]}
-                          max={meta.ranges.cursor_refresh[1]}
-                          step={meta.ranges.cursor_refresh[2]}
-                          ariaLabel={copy("trcc.cursor_refresh.label")}
-                          onCommit={(v) => void patch({ cursor_refresh: v })}
-                        />
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="gap-1.5"
-                          disabled={Boolean(st.cursor_busy)}
-                          onClick={() => void run(() => trccApi.refreshCursor(port))}
-                        >
-                          <RefreshCw className={cn("h-3.5 w-3.5", st.cursor_busy && "animate-spin")} aria-hidden />
-                          <span>{copy("trcc.cursor_refresh.now")}</span>
-                        </Button>
-                      </div>
-                    }
-                  />
                   {app.tray ? (
                     <SettingsRow
                       label={copy("trcc.close_action.label")}

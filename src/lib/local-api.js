@@ -5,6 +5,7 @@ const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const { setImmediate: yieldToRequests } = require("node:timers/promises");
 const { createAsyncQueueReader } = require("./async-queue-reader");
+const { ensureMergedUsage } = require("./merged-usage");
 const { DEFAULT_BASE_URL, resolveRuntimeConfig, assertInsforgeRuntime, normalizeInstanceBaseUrl, clearDeviceIdentity, resetInstanceState } = require("./runtime-config");
 const {
   filterRowsByUsageScope,
@@ -1001,11 +1002,34 @@ function buildProxyHeaders(headers) {
 
 function createLocalApiHandler({ queuePath, serverVersion = null, trackerDataDir: isolatedTrackerDataDir = null, syncContext = null }) {
   const qp = queuePath || resolveQueuePath();
+  // The grok-billing store is machine-global (TRCC side screen, %LOCALAPPDATA%),
+  // not per queue directory, so only the canonical queue may merge with it.
+  // Isolated queues (tests, sync sandboxes, custom trackerDataDir) keep raw
+  // queue semantics — merging real billing rows into a fixture would corrupt
+  // totals and leak user data into test assertions.
+  const mergedUsageEnabled = path.resolve(qp) === path.resolve(resolveQueuePath());
   const localUsage = createLocalUsageTransfer({ queuePath: qp, normalizeRow: normalizeQueueRow,
     identity: () => ({ id: getOrCreateMachineId(qp), name: getSystemDeviceName(), platform: process.platform }) });
   async function scopedQueueRows(queuePath, url) {
     const scope = getRequestedUsageScope(url);
-    const ownRows = await readQueueData(queuePath);
+    // Single merged usage source: queue.jsonl + the TRCC side screen's
+    // grok-billing.jsonl, rebuilt only when either input changed. Returns null
+    // when no billing export applies (isolated queue / store absent), in which
+    // case the raw queue IS the merged view. Deep per-source analytics
+    // (codex/claude/grok breakdowns, achievements, project usage) intentionally
+    // keep reading the raw queue.
+    let ownRows = null;
+    if (mergedUsageEnabled) {
+      try {
+        const mergedPath = await ensureMergedUsage({ queuePath });
+        if (mergedPath) ownRows = await readQueueData(mergedPath);
+      } catch {
+        // Merged file unavailable (read-only dir, first-run race): fall back
+        // to the raw queue so the dashboard still renders.
+        ownRows = null;
+      }
+    }
+    if (!ownRows) ownRows = await readQueueData(queuePath);
     const selected = url.searchParams.get("device_id") || "";
     // Only offline IDs select a snapshot; other IDs retain the local fallback.
     const device = selected.startsWith("local:") ? selected : "";

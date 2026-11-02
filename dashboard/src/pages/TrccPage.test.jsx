@@ -14,15 +14,17 @@ function stateBody(overrides = {}) {
       ...overrides.status,
     },
     settings: {
-      rotation: 0, mirror: false, render_interval: 1, sensor_interval: 2, cursor_refresh: 90,
+      rotation: 0, mirror: false, render_interval: 1, sensor_interval: 2, layout: "classic",
       close_action: "ask", autostart: true, colors: { cpu: "#1e90ff", text: "#ffffff" },
       ...overrides.settings,
     },
     app: { title: "t", tray: true, window_visible: false, api_port: 17691, can_elevate: true },
     meta: {
       rotations: [0, 90, 180, 270],
-      ranges: { render_interval: [0.2, 10, 0.2], sensor_interval: [0.5, 60, 0.5], cursor_refresh: [30, 3600, 30] },
+      ranges: { render_interval: [0.2, 10, 0.2], sensor_interval: [0.5, 60, 0.5] },
+      layouts: ["classic", "token-focus", "system-first", "constellation", "signal-wave", "telemetry"].map((id) => ({ id })),
       close_actions: [{ id: "ask", label: "每次询问" }, { id: "tray", label: "最小化到托盘" }, { id: "exit", label: "退出程序" }],
+      theme_presets: ["deep-space", "light", "aurora", "lava", "violet"].map((id) => ({ id })),
       color_groups: [{ label: "系统指标", items: [{ key: "cpu", label: "CPU" }] }],
     },
   };

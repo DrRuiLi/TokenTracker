@@ -18,6 +18,7 @@ hiddenimports = [
     'host',
     'control_api',
     'theme_edit',
+    'layouts',
 ]
 tmp_ret = collect_all('pythonnet')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]

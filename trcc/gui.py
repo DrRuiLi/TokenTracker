@@ -22,6 +22,7 @@ from PIL import Image, ImageDraw, ImageTk
 import control_api
 import settings as cfg
 from host import apply_partial, reset_settings
+from layouts import layouts_meta
 from render import W, H
 from sysmetrics import SOURCE_LABELS, is_admin
 from theme_edit import COLOR_GROUPS, color_groups_meta, get_color, set_color
@@ -38,8 +39,7 @@ POLL_MS = 200
 SAVE_DEBOUNCE_MS = 600
 
 CLOSE_LABELS = {"ask": "每次询问", "tray": "最小化到托盘", "exit": "退出程序"}
-RANGES = {"render_interval": (0.2, 10.0, 0.2), "sensor_interval": (0.5, 60.0, 0.5),
-          "cursor_refresh": (30, 3600, 30)}
+RANGES = {"render_interval": (0.2, 10.0, 0.2), "sensor_interval": (0.5, 60.0, 0.5)}
 
 
 class _Call:
@@ -133,7 +133,6 @@ class Tray:
             pystray.MenuItem("显示窗口", lambda: app.post("show"), default=True),
             pystray.MenuItem(lambda item: "停止推送" if app.worker.pushing else "开始推送",
                              lambda: app.post("toggle")),
-            pystray.MenuItem("立即刷新 Cursor", lambda: app.worker.refresh_cursor()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("退出", lambda: app.post("quit")),
         )
@@ -267,14 +266,6 @@ class App:
         sp1.bind("<FocusOut>", lambda e: self.on_change())
         sp1.bind("<Return>", lambda e: self.on_change())
 
-        ttk.Label(ctl, text="Cursor 刷新(秒)").grid(row=1, column=3, sticky="e")
-        self.ref_var = tk.StringVar(value=f"{self.settings['cursor_refresh']:g}")
-        sp2 = ttk.Spinbox(ctl, from_=30, to=3600, increment=30, width=6,
-                          textvariable=self.ref_var, command=self.on_change)
-        sp2.grid(row=1, column=4, sticky="w", padx=(4, 10))
-        sp2.bind("<FocusOut>", lambda e: self.on_change())
-        sp2.bind("<Return>", lambda e: self.on_change())
-
         ttk.Label(ctl, text="温度/功耗采样(秒)").grid(row=3, column=1, sticky="e", pady=(4, 0))
         self.sensor_var = tk.StringVar(value=f"{self.settings['sensor_interval']:g}")
         sp3 = ttk.Spinbox(ctl, from_=0.5, to=60, increment=0.5, width=6,
@@ -283,8 +274,6 @@ class App:
         sp3.bind("<FocusOut>", lambda e: self.on_change())
         sp3.bind("<Return>", lambda e: self.on_change())
 
-        ttk.Button(ctl, text="立即刷新 Cursor", command=self.worker.refresh_cursor
-                   ).grid(row=0, column=4, columnspan=2, sticky="w")
         ttk.Button(ctl, text="恢复默认", command=self.reset_defaults
                    ).grid(row=1, column=5, sticky="w")
 
@@ -372,8 +361,7 @@ class App:
         self.settings["rotation"] = int(self.rot_var.get())
         self.settings["mirror"] = bool(self.mirror_var.get())
         for var, key, lo, hi in ((self.int_var, "render_interval", 0.2, 10),
-                                 (self.sensor_var, "sensor_interval", 0.5, 60),
-                                 (self.ref_var, "cursor_refresh", 30, 3600)):
+                                 (self.sensor_var, "sensor_interval", 0.5, 60)):
             try:
                 self.settings[key] = min(hi, max(lo, float(var.get())))
             except ValueError:
@@ -418,7 +406,6 @@ class App:
         self.mirror_var.set(self.settings["mirror"])
         self.int_var.set(f"{self.settings['render_interval']:g}")
         self.sensor_var.set(f"{self.settings['sensor_interval']:g}")
-        self.ref_var.set(f"{self.settings['cursor_refresh']:g}")
         self.close_var.set(CLOSE_LABELS[self._close_action()])
         self._refresh_swatches()
 
@@ -430,7 +417,7 @@ class App:
             "settings": {
                 "rotation": s["rotation"], "mirror": s["mirror"],
                 "render_interval": s["render_interval"], "sensor_interval": s["sensor_interval"],
-                "cursor_refresh": s["cursor_refresh"],
+                "layout": s["layout"],
                 "close_action": self._close_action(), "autostart": s["autostart"],
                 "colors": flat_colors(s["theme"]),
             },
@@ -446,7 +433,7 @@ class App:
                 "rotations": list(cfg.ROTATIONS),
                 "ranges": {k: list(v) for k, v in RANGES.items()},
                 "close_actions": [{"id": k, "label": CLOSE_LABELS[k]} for k in cfg.CLOSE_ACTIONS],
-                "color_groups": color_groups_meta(),
+                "color_groups": color_groups_meta(), "layouts": layouts_meta(),
             },
         }
 

@@ -13,6 +13,7 @@ import {
   resolveAuthAccessToken,
 } from "../lib/auth-token";
 import { copy } from "../lib/copy";
+import { readTrccPort, trccApi } from "../lib/trcc-api.js";
 import { useLocale } from "../hooks/useLocale.js";
 import { useCurrency } from "../hooks/useCurrency.js";
 import { useTokenFormat } from "../hooks/useTokenFormat.js";
@@ -1020,6 +1021,10 @@ export function DashboardPage({
     setManualSyncLoading(true);
     try {
       if (isLocalMode) {
+        // The side-screen owns the X subscription export; kick it from the
+        // same manual refresh action as TokenTracker's local usage sync.
+        // Missing/offline side-screen must never block the dashboard refresh.
+        void trccApi.refreshCursor(readTrccPort()).catch(() => {});
         await triggerLocalSync(LOCAL_DASHBOARD_REFRESH_OPTIONS);
       }
       await refreshAll();

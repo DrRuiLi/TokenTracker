@@ -82,6 +82,8 @@ def parse_args(argv=None):
                    help="无窗口、无托盘，由 TokenTracker 作为子进程拉起")
     p.add_argument("--parent-pid", type=int, default=0,
                    help="父进程退出后本进程也退出（--serve）")
+    p.add_argument("--usage-file", type=Path, default=None,
+                   help="TokenTracker 汇总用量 JSONL（--serve）")
     p.add_argument("--rotate", type=int, choices=(0, 90, 180, 270),
                    help="覆盖设置里的旋转角度（顺时针）")
     p.add_argument("--mirror", action="store_true", help="镜像（覆盖设置）")
@@ -92,7 +94,6 @@ def parse_args(argv=None):
                    help="诊断：采样温度/功耗约 6 秒后输出（到 FILE 或控制台）")
     p.add_argument("--csv", type=Path, help="用本地 CSV 代替在线拉取（调试）")
     p.add_argument("--interval", type=float, default=None, help="画面重绘间隔秒（默认取设置，1）")
-    p.add_argument("--refresh", type=float, default=None, help="Cursor 用量刷新间隔秒（默认取设置，90）")
     p.add_argument("--serial", default=None, help="USB 序列号过滤（默认取设置）")
     p.add_argument("--vid", default=f"{VID:04x}")
     p.add_argument("--pid", default=f"{PID:04x}")
@@ -108,8 +109,6 @@ def _settings_with_overrides(args):
         st["mirror"] = True
     if getattr(args, "interval", None) is not None:
         st["render_interval"] = args.interval
-    if getattr(args, "refresh", None) is not None:
-        st["cursor_refresh"] = args.refresh
     if getattr(args, "serial", None) is not None:
         st["serial"] = args.serial
     return st
@@ -133,7 +132,7 @@ def run_preview(path: Path, csv: Path | None, args=None):
         if metrics is not None:
             metrics.close()
     st = _settings_with_overrides(args)
-    img = render(m, stats or empty_stats(), st["theme"])
+    img = render(m, stats or empty_stats(), st["theme"], st.get("layout", "classic"))
     img = orient_image(img, img.width, img.height, st["rotation"], st["mirror"])
     path = Path(path)
     img.save(path)
@@ -213,8 +212,11 @@ def main(argv=None):
     if args.serve:
         _serve_log()
         from host import run_serve
+        serve_args = ["--serve"]
+        if args.usage_file:
+            serve_args.extend(["--usage-file", str(args.usage_file)])
         return run_serve(csv_override=args.csv, parent_pid=args.parent_pid,
-                         serve_args=["--serve"])
+                         usage_file=args.usage_file, serve_args=serve_args)
     if args.sensors:
         return run_sensor_check(args.sensors)
     if args.preview_only is not None:

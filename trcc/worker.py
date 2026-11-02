@@ -43,7 +43,7 @@ def empty_stats() -> Dict[str, Any]:
 
 
 class PushWorker(threading.Thread):
-    def __init__(self, settings: Dict[str, Any], csv_override=None, vid=None, pid=None):
+    def __init__(self, settings: Dict[str, Any], csv_override=None, usage_file=None, vid=None, pid=None):
         super().__init__(name="push-worker", daemon=True)
         self._lock = threading.Lock()
         self._settings = copy.deepcopy(settings)
@@ -51,8 +51,7 @@ class PushWorker(threading.Thread):
         self._dirty = threading.Event()
         self._pushing = bool(settings.get("autostart", True))
         self._vid, self._pid = vid, pid
-        self.usage = CursorUsage(refresh_s=float(settings.get("cursor_refresh", 90)),
-                                 csv_override=csv_override)
+        self.usage = CursorUsage(csv_override=csv_override, usage_file=usage_file)
         self._preview = None          # oriented PIL image, as sent
         self._preview_seq = 0
         self._status: Dict[str, Any] = {
@@ -66,7 +65,6 @@ class PushWorker(threading.Thread):
     def update_settings(self, settings: Dict[str, Any]) -> None:
         with self._lock:
             self._settings = copy.deepcopy(settings)
-        self.usage.refresh_s = float(settings.get("cursor_refresh", 90))
         metrics = self._metrics
         if metrics is not None:
             metrics.set_sensor_period(float(settings.get("sensor_interval", 2.0)))
@@ -187,7 +185,7 @@ class PushWorker(threading.Thread):
                     except Exception:
                         m = placeholder_metrics()
                     t0 = time.perf_counter()
-                    img = render(m, stats or empty_stats(), settings.get("theme"))
+                    img = render(m, stats or empty_stats(), settings.get("theme"), settings.get("layout", "classic"))
                     rot = int(settings.get("rotation", 0)) % 360
                     mirror = bool(settings.get("mirror", False))
                     size = (lcd.profile.width, lcd.profile.height) if (lcd and lcd.profile) else (W, H)

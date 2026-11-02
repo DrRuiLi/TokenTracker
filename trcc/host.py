@@ -19,15 +19,16 @@ import control_api
 import settings as cfg
 from sysmetrics import is_admin
 from theme_edit import COLOR_KEYS, color_groups_meta, flat_colors, set_color
+from theme_presets import PRESET_IDS, preset_theme, presets_meta
+from layouts import LAYOUT_IDS, layouts_meta
 from worker import PushWorker
 
 log = logging.getLogger("trcc_dash.host")
 
 APP_TITLE = "利民副屏 Token 仪表盘"
-RANGES = {"render_interval": (0.2, 10.0, 0.2), "sensor_interval": (0.5, 60.0, 0.5),
-          "cursor_refresh": (30, 3600, 30)}
+RANGES = {"render_interval": (0.2, 10.0, 0.2), "sensor_interval": (0.5, 60.0, 0.5)}
 API_EDITABLE = frozenset(("rotation", "mirror", "render_interval", "sensor_interval",
-                          "cursor_refresh", "close_action", "colors"))
+                          "close_action", "colors", "theme_preset", "layout"))
 _WAIT_TIMEOUT = 0x102
 
 
@@ -76,6 +77,15 @@ def apply_partial(settings: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, A
         if data["close_action"] not in cfg.CLOSE_ACTIONS:
             raise ValueError("close_action must be ask/tray/exit")
         s["close_action"] = data["close_action"]
+    if "theme_preset" in data:
+        preset = data["theme_preset"]
+        if preset not in PRESET_IDS:
+            raise ValueError("unknown theme preset")
+        s["theme"] = preset_theme(preset)
+    if "layout" in data:
+        if data["layout"] not in LAYOUT_IDS:
+            raise ValueError("unknown layout")
+        s["layout"] = data["layout"]
     colors = data.get("colors")
     if colors is not None:
         if not isinstance(colors, dict):
@@ -102,10 +112,11 @@ def settings_payload(settings: Dict[str, Any], *, tray: bool, window_visible: bo
             "rotation": settings["rotation"], "mirror": settings["mirror"],
             "render_interval": settings["render_interval"],
             "sensor_interval": settings["sensor_interval"],
-            "cursor_refresh": settings["cursor_refresh"],
+            "layout": settings["layout"],
             "close_action": settings.get("close_action", "ask"),
             "autostart": settings["autostart"],
             "colors": flat_colors(settings["theme"]),
+            "theme_preset": settings["theme_preset"],
         },
         "app": {
             "title": APP_TITLE,
@@ -122,6 +133,8 @@ def settings_payload(settings: Dict[str, Any], *, tray: bool, window_visible: bo
                 ("ask", "每次询问"), ("tray", "最小化到托盘"), ("exit", "退出程序"),
             )],
             "color_groups": color_groups_meta(),
+            "theme_presets": presets_meta(),
+            "layouts": layouts_meta(),
         },
     }
 
@@ -140,11 +153,11 @@ def _already_serving(port: int) -> bool:
 class DashHost:
     """PushWorker plus the control API, with commands handled on the caller thread."""
 
-    def __init__(self, csv_override=None, parent_pid: int = 0, serve_args=None):
+    def __init__(self, csv_override=None, usage_file=None, parent_pid: int = 0, serve_args=None):
         self.settings = cfg.load()
         self.parent_pid = parent_pid
         self.serve_args = list(serve_args or [])
-        self.worker = PushWorker(self.settings, csv_override=csv_override)
+        self.worker = PushWorker(self.settings, csv_override=csv_override, usage_file=usage_file)
         self.api = None
         self._lock = threading.Lock()
         self._stopped = threading.Event()
@@ -246,8 +259,8 @@ def Path_pythonw(executable: str) -> str:
     return sibling if os.path.isfile(sibling) else executable
 
 
-def run_serve(csv_override=None, parent_pid: int = 0, serve_args=None) -> int:
-    host = DashHost(csv_override=csv_override, parent_pid=parent_pid, serve_args=serve_args)
+def run_serve(csv_override=None, usage_file=None, parent_pid: int = 0, serve_args=None) -> int:
+    host = DashHost(csv_override=csv_override, usage_file=usage_file, parent_pid=parent_pid, serve_args=serve_args)
     try:
         host.start()
     except SystemExit as exc:

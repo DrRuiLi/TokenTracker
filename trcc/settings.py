@@ -7,22 +7,11 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from render import DEFAULT_THEME
+from theme_presets import default_theme_hex, theme_preset_for
 
 ROTATIONS = (0, 90, 180, 270)
 CLOSE_ACTIONS = ("ask", "tray", "exit")
 DEFAULT_API_PORT = 17691
-
-
-def _hex(c) -> str:
-    return "#{:02x}{:02x}{:02x}".format(*[int(x) for x in c[:3]])
-
-
-def default_theme_hex() -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
-    for k, v in DEFAULT_THEME.items():
-        out[k] = [_hex(x) for x in v] if k in ("heat_levels", "models") else _hex(v)
-    return out
 
 
 DEFAULTS: Dict[str, Any] = {
@@ -30,12 +19,13 @@ DEFAULTS: Dict[str, Any] = {
     "mirror": False,
     "render_interval": 1.0,  # seconds between re-renders
     "sensor_interval": 2.0,  # seconds between CPU temp / power samples
-    "cursor_refresh": 90,    # seconds between Cursor usage fetches
+    "layout": "classic",
     "serial": "181104191B22C003",
     "autostart": True,       # start pushing when the window opens
     "close_action": "ask",   # window close button: ask / tray (keep pushing) / exit
     "api_port": DEFAULT_API_PORT,  # 127.0.0.1 control API used by the TokenTracker page; 0 = off
     "theme": default_theme_hex(),
+    "theme_preset": "deep-space",  # re-derived from theme by _sanitize
 }
 
 
@@ -69,8 +59,7 @@ def _sanitize(data: Dict[str, Any]) -> Dict[str, Any]:
         s["rotation"] = r if r in ROTATIONS else 0
     except (TypeError, ValueError):
         pass
-    for k, lo, hi in (("render_interval", 0.2, 10.0), ("sensor_interval", 0.5, 60.0),
-                      ("cursor_refresh", 30, 3600)):
+    for k, lo, hi in (("render_interval", 0.2, 10.0), ("sensor_interval", 0.5, 60.0)):
         try:
             v = float(data.get(k, s[k]))
             s[k] = min(hi, max(lo, v))
@@ -80,6 +69,9 @@ def _sanitize(data: Dict[str, Any]) -> Dict[str, Any]:
         s["serial"] = data["serial"].strip()
     if data.get("close_action") in CLOSE_ACTIONS:
         s["close_action"] = data["close_action"]
+    from layouts import LAYOUT_IDS
+    if data.get("layout") in LAYOUT_IDS:
+        s["layout"] = data["layout"]
     try:
         port = int(data.get("api_port", s["api_port"]))
         if port == 0 or 1024 <= port <= 65535:
@@ -96,6 +88,9 @@ def _sanitize(data: Dict[str, Any]) -> Dict[str, Any]:
                     s["theme"][k] = [x.lower() for x in v]
             elif _valid_hex(v):
                 s["theme"][k] = v.lower()
+    # theme_preset is a display state derived from the theme itself, so it
+    # survives hand-edited settings.json files and legacy installs.
+    s["theme_preset"] = theme_preset_for(s["theme"])
     return s
 
 

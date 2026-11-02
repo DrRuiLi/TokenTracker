@@ -1,9 +1,17 @@
 # Build the combined TokenTracker + TRCC side-screen installer from this tree.
 # Output: TokenTrackerWin\installer\Output\TokenTracker-Setup-v<version>.exe
 # Requires: Node.js, Python 3.12, .NET 8 SDK, Inno Setup 6.
+param([string]$BuildVersion, [switch]$SkipTests)
+
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
+
+$packageVersion = (Get-Content -Raw (Join-Path $Root 'package.json') | ConvertFrom-Json).version
+if (-not $BuildVersion) { $BuildVersion = $packageVersion }
+if ($BuildVersion -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+    throw "BuildVersion must be x.y.z or x.y.z.n, got '$BuildVersion'."
+}
 
 function Find-FirstPath([string[]]$Candidates) {
     foreach ($candidate in $Candidates) {
@@ -66,7 +74,9 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
     Invoke-Checked { & $python -m venv (Join-Path $Root 'trcc\.venv') }
 }
 Invoke-Checked { & $venvPython -m pip install -r (Join-Path $Root 'trcc\requirements.txt') }
-Invoke-Checked { & $venvPython (Join-Path $Root 'trcc\test_unit.py') }
+if (-not $SkipTests) {
+    Invoke-Checked { & $venvPython (Join-Path $Root 'trcc\test_unit.py') }
+}
 Push-Location (Join-Path $Root 'trcc')
 try {
     Invoke-Checked { & $venvPython -m PyInstaller --noconfirm trcc-bundle.spec }
@@ -86,7 +96,8 @@ $publish = Join-Path $Root 'TokenTrackerWin\publish'
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
 Invoke-Checked {
     & $dotnet publish (Join-Path $Root 'TokenTrackerWin\TokenTrackerWin.csproj') `
-        -c Release -r win-x64 --self-contained true -o $publish
+        -c Release -r win-x64 --self-contained true -o $publish `
+        "/p:Version=$BuildVersion" "/p:FileVersion=$BuildVersion" "/p:AssemblyVersion=$BuildVersion"
 }
 Copy-Item (Join-Path $Root 'TokenTrackerWin\EmbeddedServer') (Join-Path $publish 'EmbeddedServer') -Recurse -Force
 Copy-Item (Join-Path $Root 'trcc\dist\trcc-token-dash') (Join-Path $publish 'trcc') -Recurse -Force
@@ -113,8 +124,20 @@ if ($sidecar -notlike '*path.resolve(__dirname, "..", "..", "trcc")*') {
 }
 
 Write-Host '== installer =='
-$version = (Get-Content -Raw (Join-Path $Root 'package.json') | ConvertFrom-Json).version
-Invoke-Checked { & $iscc "/DMyAppVersion=$version" (Join-Path $Root 'TokenTrackerWin\installer\TokenTracker.iss') }
-$setup = Join-Path $Root "TokenTrackerWin\installer\Output\TokenTracker-Setup-v$version.exe"
+$driveLetter = @('T', 'S', 'R', 'Q', 'P', 'O', 'N', 'M', 'L', 'K') |
+    Where-Object { -not (Get-PSDrive -Name $_ -ErrorAction SilentlyContinue) } |
+    Select-Object -First 1
+if (-not $driveLetter) { throw 'No free drive letter is available for the short-path installer build.' }
+$shortDrive = "${driveLetter}:"
+$subst = Join-Path $env:SystemRoot 'System32\subst.exe'
+Invoke-Checked { & $subst $shortDrive $Root }
+try {
+    $shortIss = "$shortDrive\TokenTrackerWin\installer\TokenTracker.iss"
+    $shortOutput = "$shortDrive\TokenTrackerWin\installer\Output"
+    Invoke-Checked { & $iscc "/DMyAppVersion=$BuildVersion" "/O$shortOutput" $shortIss }
+} finally {
+    & $subst $shortDrive /d | Out-Null
+}
+$setup = Join-Path $Root "TokenTrackerWin\installer\Output\TokenTracker-Setup-v$BuildVersion.exe"
 if (-not (Test-Path -LiteralPath $setup)) { throw "Installer was not produced at $setup" }
 Write-Host "BUILD OK: $setup"

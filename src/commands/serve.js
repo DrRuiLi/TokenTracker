@@ -11,6 +11,7 @@ const { serveStaticFile } = require("../lib/static-server");
 const { openInBrowser } = require("../lib/browser-auth");
 const { maybeShowStarCta } = require("../lib/star-cta");
 const { startTrccSidecar } = require("../lib/trcc-sidecar");
+const { ensureMergedUsage } = require("../lib/merged-usage");
 
 const DEFAULT_PORT = 7680;
 // Windows Delivery Optimization (DoSvc) listens on 0.0.0.0:7680 on virtually
@@ -255,7 +256,23 @@ async function cmdServe(argv) {
   // network request, or deep Codex archive scan). The macOS app owns its own
   // wake-aware refresh loop; running both loops made sync.lock nearly
   // continuous and starved provider notify syncs.
-  const trccSidecar = startTrccSidecar();
+  const trccSidecar = startTrccSidecar({
+    usageFile: path.join(path.dirname(queuePath), "merged-usage.jsonl"),
+  });
+
+  // Keep merged-usage.jsonl (queue + TRCC grok-billing export) fresh even when
+  // no dashboard tab is polling the usage endpoints: the 副屏 reads it
+  // directly. Rebuilds are signature-gated inside ensureMergedUsage, so a no-op
+  // tick is a pair of stat() calls; the interval is unref'd so it never holds
+  // the process open.
+  {
+    const refreshMergedUsage = () =>
+      ensureMergedUsage({ queuePath }).catch((e) =>
+        process.stdout.write(`Merged usage refresh warning: ${e?.message || e}\n`),
+      );
+    refreshMergedUsage();
+    setInterval(refreshMergedUsage, 30_000).unref();
+  }
 
   const nativeBackgroundSync = startNativeBackgroundSync({
     onError: (e) =>

@@ -266,13 +266,402 @@ def _heatmap(c, x, y, w, t, cell=10, gap=2):
                 c.d.rounded_rectangle(c.s(cx - 1, cy - 1, cx + cell + 1, cy + cell + 1), 3 * SS, outline=WHITE, width=int(1.5 * SS))
 
 
-def render(metrics, token_stats, theme=None):
+def _draw_model_rows(c, t, x, y, w, *, count=4, row_height=37):
+    colors = c.th["models"]
+    total = t.get("today", 0) or 1
+    models = t.get("models", [])[:count]
+    if not models:
+        c.text((x, y), "No model usage yet", 13, c.th["text_dim"], "Medium")
+        return
+    for i, (name, tokens) in enumerate(models):
+        row_y = y + i * row_height
+        color = colors[i % len(colors)]
+        c.d.ellipse(c.s(x, row_y + 5, x + 8, row_y + 13), fill=color)
+        pct = f"{100 * tokens / total:.0f}%"
+        c.text((x + w, row_y), pct, 13, c.th["text_dim"], "SemiBold", anchor="ra")
+        label = str(name)
+        max_width = w - 48
+        while c.tw(label, 14, "Medium") > max_width and len(label) > 4:
+            label = label[:-2] + "…"
+        c.text((x + 14, row_y), label, 14, c.th["text"], "Medium")
+        c.hbar(x + 14, row_y + 21, w - 14, 4, tokens / total, color)
+
+
+def _system_values(metrics, th):
+    up_v, up_u = fmt_rate(metrics["up_bps"])
+    dl_v, dl_u = fmt_rate(metrics["dl_bps"])
+    return [
+        ("CPU", f"{metrics['cpu']:.0f}%", th["cpu"]),
+        ("MEM", f"{metrics['mem']:.0f}%", th["mem"]),
+        ("POWER", f"{metrics.get('power_w') or 0:.0f} W", th["power"]),
+        ("TEMP", f"{metrics.get('temp_c') or 0:.0f}°C", th["temp"]),
+        ("UP", f"{up_v} {up_u}", th["up"]),
+        ("DOWN", f"{dl_v} {dl_u}", th["dl"]),
+    ]
+
+
+def _render_token_focus(metrics, t, th):
+    c = _Ctx(th)
+    m, gap = 8, 8
+    left_x, left_w = m, 500
+    right_x, right_w = left_x + left_w + gap, W - m - (left_x + left_w + gap)
+    c.card(left_x, m, left_w, H - 2 * m)
+    c.text((left_x + 16, 19), "TODAY · TOKEN USAGE", 14, th["text_dim"], "SemiBold")
+    c.text((left_x + 16, 38), fmt_tokens(t.get("today", 0)), 55, th["text"], "Bold")
+    c.text((left_x + 18, 105), f"7D  {fmt_tokens(t.get('total_7d', 0))}", 16, th["text_dim"], "Medium")
+    c.text((left_x + 230, 105), f"30D  {fmt_tokens(t.get('total_30d', 0))}", 16, th["text_dim"], "Medium")
+    c.text((left_x + 18, 137), "DAILY ACTIVITY", 12, th["axis"], "SemiBold")
+    days = t.get("days", [])
+    c.bars(left_x + 18, 155, left_w - 36, 57, [v for _, v in days], gap=2,
+           color=th["daily_bar"], dim=th["daily_bar_dim"], hi=th["daily_bar_hi"])
+    _heatmap(c, left_x + 18, 229, left_w - 36, t, cell=9, gap=2)
+
+    c.card(right_x, m, right_w, H - 2 * m)
+    c.text((right_x + 14, 19), "TODAY BY MODEL", 13, th["text_dim"], "SemiBold")
+    _draw_model_rows(c, t, right_x + 14, 42, right_w - 28, count=4, row_height=35)
+    c.d.line(c.s(right_x + 14, 190, right_x + right_w - 14, 190), fill=th["border"], width=SS)
+    values = _system_values(metrics, th)
+    for i, (label, value, color) in enumerate(values):
+        col, row = i % 2, i // 2
+        x = right_x + 14 + col * (right_w / 2)
+        y = 204 + row * 32
+        c.d.ellipse(c.s(x, y + 5, x + 7, y + 12), fill=color)
+        c.text((x + 12, y), label, 11, th["axis"], "SemiBold")
+        c.text((x + 12, y + 12), value, 13, th["text"], "SemiBold")
+    return c.img.resize((W, H), Image.LANCZOS)
+
+
+def _render_system_first(metrics, t, th):
+    c = _Ctx(th)
+    m, gap = 8, 8
+    left_x, left_w = m, 620
+    right_x, right_w = left_x + left_w + gap, W - m - (left_x + left_w + gap)
+    c.card(left_x, m, left_w, H - 2 * m)
+    c.text((left_x + 14, 16), "SYSTEM STATUS", 13, th["text_dim"], "SemiBold")
+    values = _system_values(metrics, th)
+    series = [metrics["cpu_hist"], metrics["mem_hist"], metrics["power_hist"],
+              metrics["temp_hist"], metrics["up_hist"], metrics["dl_hist"]]
+    vmax = [100, 100, None, 100, None, None]
+    card_gap, card_w, card_h = 8, (left_w - 28 - 2 * 8) / 3, 112
+    for i, ((label, value, color), hist) in enumerate(zip(values, series)):
+        col, row = i % 3, i // 3
+        x, y = left_x + 14 + col * (card_w + card_gap), 39 + row * (card_h + 8)
+        c.card(x, y, card_w, card_h, r=10)
+        c.text((x + 10, y + 9), label, 12, th["text_dim"], "SemiBold")
+        c.text((x + 10, y + 28), value, 23, th["text"], "Bold")
+        c.spark(x + 9, y + 68, card_w - 18, 32, hist, color, vmax[i])
+
+    c.card(right_x, m, right_w, H - 2 * m)
+    c.text((right_x + 14, 18), "TODAY", 13, th["text_dim"], "SemiBold")
+    c.text((right_x + 14, 37), fmt_tokens(t.get("today", 0)), 39, th["text"], "Bold")
+    c.text((right_x + 14, 87), f"7D  {fmt_tokens(t.get('total_7d', 0))}", 14, th["text_dim"], "Medium")
+    c.text((right_x + 14, 108), f"30D  {fmt_tokens(t.get('total_30d', 0))}", 14, th["text_dim"], "Medium")
+    c.text((right_x + 14, 139), "TOP MODELS", 12, th["text_dim"], "SemiBold")
+    _draw_model_rows(c, t, right_x + 14, 158, right_w - 28, count=3, row_height=40)
+    return c.img.resize((W, H), Image.LANCZOS)
+
+
+def _pulse_color(color, th):
+    # The one-second renderer cadence gives the live indicator a restrained pulse.
+    import math
+    wave = (1 + math.sin(dt.datetime.now().timestamp() * 3.2)) / 2
+    return blend(th["card_hi"], color, 0.55 + wave * 0.45)
+
+
+def _live_mark(c, x, y, color):
+    pulse = _pulse_color(color, c.th)
+    c.d.ellipse(c.s(x, y, x + 7, y + 7), fill=pulse)
+    c.d.ellipse(c.s(x - 3, y - 3, x + 10, y + 10), outline=blend(c.th["card"], pulse, 0.45), width=SS)
+
+
+def _system_chip(c, x, y, w, h, item, history=None, *, style="spark", sub=None):
+    label, value, color = item
+    c.card(x, y, w, h, r=9 if style == "spark" else 14)
+    c.d.rounded_rectangle(c.s(x + 1, y + 1, x + 5, y + h - 1), 2 * SS, fill=color)
+    c.text((x + 12, y + 7), label, 10 if style == "rail" else 11, c.th["text_dim"], "SemiBold")
+    c.text((x + 12, y + 21), value, 18 if style == "rail" else (16 if sub else 20), c.th["text"], "Bold")
+    if sub:
+        c.text((x + 12, y + h - 12), sub, 8, c.th["text_dim"], "Medium")
+    if style == "spark" and history:
+        c.spark(x + w - 51, y + 12, 40, h - 22, history, color)
+    elif style == "rail":
+        numeric = None
+        for suffix in ("%", " W", "°C"):
+            if value.endswith(suffix):
+                try:
+                    numeric = float(value[:-len(suffix)])
+                except ValueError:
+                    pass
+                break
+        if label == "MEM":
+            numeric = float(value.rstrip("%"))
+        if numeric is not None:
+            c.hbar(x + 12, y + h - 10, w - 24, 3, numeric / 100, color)
+        elif history:
+            c.spark(x + 12, y + h - 20, w - 24, 12, history, color)
+
+
+def _system_row(c, x, y, w, item, history=None):
+    label, value, color = item
+    c.d.rounded_rectangle(c.s(x, y + 1, x + 3, y + 19), 1.5 * SS, fill=color)
+    # Minimal line icons keep each metric recognizable at this small scale.
+    cx, cy = x + 13, y + 10
+    if label == "CPU":
+        c.d.rounded_rectangle(c.s(cx - 5, cy - 5, cx + 5, cy + 5), 2 * SS, outline=color, width=SS)
+        for k in (-3, 0, 3):
+            c.d.line(c.s(cx + k, cy - 8, cx + k, cy - 5), fill=color, width=SS)
+            c.d.line(c.s(cx + k, cy + 5, cx + k, cy + 8), fill=color, width=SS)
+    elif label == "MEM":
+        c.d.rounded_rectangle(c.s(cx - 7, cy - 4, cx + 7, cy + 4), 2 * SS, outline=color, width=SS)
+        for k in (-4, 0, 4):
+            c.d.line(c.s(cx + k, cy - 2, cx + k, cy + 2), fill=color, width=SS)
+    elif label == "POWER":
+        c.d.line(c.s(cx + 1, cy - 8, cx - 4, cy + 1, cx + 1, cy + 1, cx - 1, cy + 8), fill=color, width=2 * SS, joint="curve")
+    elif label == "TEMP":
+        c.d.rounded_rectangle(c.s(cx - 2, cy - 8, cx + 2, cy + 3), 2 * SS, outline=color, width=SS)
+        c.d.ellipse(c.s(cx - 4, cy + 1, cx + 4, cy + 9), fill=color)
+    else:
+        up = label == "UP"
+        end_y = cy - 6 if up else cy + 6
+        c.d.line(c.s(cx, cy + (5 if up else -5), cx, end_y), fill=color, width=2 * SS)
+        c.d.line(c.s(cx - 4, end_y + (4 if up else -4), cx, end_y, cx + 4, end_y + (4 if up else -4)), fill=color, width=2 * SS, joint="curve")
+    c.text((x + 27, y + 1), value, 14, c.th["text"], "SemiBold")
+    if history:
+        c.spark(x + w - 62, y + 2, 55, 16, history, color)
+
+
+def _draw_usage_summary(c, t, x, y, w, h, *, style="orbit"):
+    c.card(x, y, w, h, r=12 if style == "orbit" else 20)
+    color = c.th["daily_bar"]
+    _live_mark(c, x + 15, y + 15, color)
+    c.text((x + 27, y + 9), "TODAY", 11, c.th["text_dim"], "SemiBold")
+    today = fmt_tokens(t.get("today", 0))
+    c.text((x + 12, y + 26), today, 33 if w > 260 else 29, c.th["text"], "Bold")
+    y0 = y + (67 if h > 230 else 62)
+    gap = 8
+    values = [("7 DAYS", t.get("total_7d", 0)), ("30 DAYS", t.get("total_30d", 0))]
+    tile_w = (w - 24 - gap) / 2
+    for i, (label, total) in enumerate(values):
+        tx = x + 12 + i * (tile_w + gap)
+        c.d.rounded_rectangle(c.s(tx, y0, tx + tile_w, y0 + 42), 7 * SS, fill=c.th["card_hi"])
+        c.text((tx + 8, y0 + 5), label, 9, c.th["text_dim"], "SemiBold")
+        c.text((tx + 8, y0 + 18), fmt_tokens(total), 17, c.th["text"], "Bold")
+    active = t.get("active_days", 0)
+    first = t.get("first_date")
+    since = first[5:].replace("-", "/") if first else "—"
+    c.text((x + 12, y0 + 49), f"ALL  {fmt_tokens(t.get('total_all', 0))}", 12, c.th["text"], "SemiBold")
+    c.text((x + w - 12, y0 + 49), f"{active} days · {since}", 10, c.th["text_dim"], "Medium", anchor="ra")
+
+
+def _draw_daily_panel(c, t, x, y, w, h, *, variant="bars"):
+    c.text((x, y), "30-DAY ACTIVITY", 10, c.th["text_dim"], "SemiBold")
+    days = t.get("days", [])
+    avg = sum(v for _, v in days) / max(1, len(days))
+    peak = max((v for _, v in days), default=0)
+    c.text((x + w, y), f"AVG {fmt_tokens(avg)} · PEAK {fmt_tokens(peak)}", 8, c.th["text_dim"], "Medium", anchor="ra")
+    if variant == "wave" and len(days) > 1:
+        vals = [v for _, v in days]
+        vmax = max(vals) or 1
+        pts = [(x + w * i / (len(vals) - 1), y + 40 - 34 * v / vmax) for i, v in enumerate(vals)]
+        c.spark(x, y + 6, w, 38, vals, c.th["daily_bar"], vmax)
+        c.d.line([tuple(c.s(*p)) for p in pts], fill=c.th["daily_bar_hi"], width=2 * SS, joint="curve")
+    else:
+        c.bars(x, y + 8, w, 39, [v for _, v in days], gap=1.2,
+               color=c.th["daily_bar"], dim=c.th["daily_bar_dim"], hi=c.th["daily_bar_hi"])
+
+
+def _draw_hourly_panel(c, t, x, y, w, h, *, variant="bars"):
+    c.text((x, y), "TODAY BY HOUR", 10, c.th["text_dim"], "SemiBold")
+    hours = t.get("hours", [0] * 24)
+    cur = min(23, max(0, int(t.get("current_hour", 23))))
+    vals = hours[:cur + 1] + [0] * (23 - cur)
+    top = y + 14
+    chart_h = max(14, h - 28)
+    if variant == "wave" and len(vals) > 1:
+        mx = max(vals) or 1
+        pts = [(x + w * i / (len(vals) - 1), top + chart_h - chart_h * v / mx) for i, v in enumerate(vals)]
+        c.spark(x, top, w, chart_h, vals, c.th["hourly_bar"], mx)
+        c.d.line([tuple(c.s(*p)) for p in pts], fill=c.th["hourly_bar"], width=2 * SS, joint="curve")
+    else:
+        c.bars(x, top, w, chart_h, vals, gap=1, hi_last=False,
+               color=c.th["hourly_bar"], dim=c.th["hourly_bar_dim"])
+    c.text((x, y + h - 11), "00", 8, c.th["axis"], "Medium")
+    c.text((x + w / 2, y + h - 11), "12", 8, c.th["axis"], "Medium", anchor="ma")
+    c.text((x + w, y + h - 11), "24", 8, c.th["axis"], "Medium", anchor="ra")
+
+
+def _draw_model_panel(c, t, x, y, w, h, *, style="rows", count=4):
+    c.card(x, y, w, h, r=12 if style == "rows" else 18)
+    c.text((x + 12, y + 9), "TODAY BY MODEL", 10, c.th["text_dim"], "SemiBold")
+    models = t.get("models", [])[:count]
+    total = t.get("today", 0) or 1
+    colors = c.th["models"]
+    if not models:
+        c.text((x + 12, y + 34), "No model usage yet", 12, c.th["text_dim"], "Medium")
+        return
+    row_h = min(36, max(25, (h - 32) / len(models)))
+    top = y + 29
+    for i, (name, tokens) in enumerate(models):
+        row_y = top + i * row_h
+        col = colors[i % len(colors)]
+        label = str(name)
+        max_width = w - 95
+        while c.tw(label, 11, "Medium") > max_width and len(label) > 4:
+            label = label[:-2] + "…"
+        c.d.ellipse(c.s(x + 12, row_y + 3, x + 19, row_y + 10), fill=col)
+        c.text((x + 24, row_y), label, 11, c.th["text"], "Medium")
+        c.text((x + w - 12, row_y), f"{fmt_tokens(tokens)} · {tokens * 100 / total:.0f}%", 9, c.th["text_dim"], "SemiBold", anchor="ra")
+        c.hbar(x + 12, row_y + 15, w - 24, 3, tokens / total, col)
+
+
+def _render_constellation(metrics, t, th):
+    c = _Ctx(th)
+    m, gap, top_h, body_y, body_h = 8, 8, 54, 70, 242
+    values = _system_values(metrics, th)
+    histories = [metrics["cpu_hist"], metrics["mem_hist"], metrics["power_hist"],
+                 metrics["temp_hist"], metrics["up_hist"], metrics["dl_hist"]]
+    chip_gap = 6
+    chip_w = (W - 2 * m - 5 * chip_gap) / 6
+    for i, (item, hist) in enumerate(zip(values, histories)):
+        sub = f"{metrics['mem_used_gb']:.1f}/{metrics['mem_total_gb']:.0f}G" if item[0] == "MEM" else None
+        _system_chip(c, m + i * (chip_w + chip_gap), m, chip_w, top_h, item, hist, sub=sub)
+
+    _draw_usage_summary(c, t, m, body_y, 300, body_h, style="orbit")
+    x = m + 300 + gap
+    w = 272
+    c.card(x, body_y, w, body_h, r=12)
+    _draw_daily_panel(c, t, x + 12, body_y + 10, w - 24, 55)
+    _heatmap(c, x + 12, body_y + 73, w - 24, t, cell=6, gap=1)
+    _draw_hourly_panel(c, t, x + 12, body_y + 137, w - 24, 83)
+    _draw_model_panel(c, t, m + 300 + gap + w + gap, body_y, W - m - (m + 300 + gap + w + gap), body_h, style="orbit", count=5)
+    return c.img.resize((W, H), Image.LANCZOS)
+
+
+def _render_signal_wave(metrics, t, th):
+    c = _Ctx(th)
+    m, gap = 8, 8
+    left_w, chart_w = 220, 420
+    _draw_usage_summary(c, t, m, m, left_w, H - 2 * m, style="signal")
+    charts_x = m + left_w + gap
+    c.card(charts_x, m, chart_w, H - 2 * m, r=20)
+    _live_mark(c, charts_x + 20, m + 19, th["hourly_bar"])
+    c.text((charts_x + 33, m + 12), "TOKEN RHYTHM", 12, th["text_dim"], "SemiBold")
+    _draw_daily_panel(c, t, charts_x + 16, m + 39, chart_w - 32, 60, variant="wave")
+    _heatmap(c, charts_x + 16, m + 111, chart_w - 32, t, cell=6, gap=1)
+    _draw_hourly_panel(c, t, charts_x + 16, m + 174, chart_w - 32, 52, variant="wave")
+
+    right_x = charts_x + chart_w + gap
+    right_w = W - m - right_x
+    c.card(right_x, m, right_w, 104, r=20)
+    c.text((right_x + 12, m + 7), "SYSTEM PULSE", 9, th["text_dim"], "SemiBold")
+    values = _system_values(metrics, th)
+    histories = [metrics["cpu_hist"], metrics["mem_hist"], metrics["power_hist"],
+                 metrics["temp_hist"], metrics["up_hist"], metrics["dl_hist"]]
+    # Six short level meters fit in a 2x3 grid, with rate sparklines for network.
+    cell_w, cell_h = (right_w - 30) / 2, 24
+    for i, (item, hist) in enumerate(zip(values, histories)):
+        label, value, color = item
+        gx = right_x + 12 + (i % 2) * (cell_w + 6)
+        gy = m + 25 + (i // 2) * 24
+        c.d.ellipse(c.s(gx, gy + 4, gx + 5, gy + 9), fill=color)
+        c.text((gx + 9, gy), label, 8, th["text_dim"], "SemiBold")
+        shown_value = value
+        if label == "MEM":
+            shown_value = f"{value} {metrics['mem_used_gb']:.1f}/{metrics['mem_total_gb']:.0f}G"
+        c.text((gx + cell_w, gy), shown_value, 7 if label == "MEM" else 8, th["text"], "SemiBold", anchor="ra")
+        if item[0] in ("UP", "DOWN"):
+            c.spark(gx + 8, gy + 11, cell_w - 8, 9, hist, color)
+        else:
+            try:
+                numeric = float(value.rstrip("% W°C"))
+            except ValueError:
+                numeric = 0
+            scale = 100 if item[0] in ("CPU", "MEM", "TEMP") else 200
+            c.hbar(gx + 8, gy + 14, cell_w - 8, 3, numeric / scale, color)
+    _draw_model_panel(c, t, right_x, m + 112, right_w, H - 2 * m - 112, style="signal", count=5)
+    return c.img.resize((W, H), Image.LANCZOS)
+
+
+def _render_telemetry(metrics, t, th):
+    c = _Ctx(th)
+    m, gap = 8, 8
+    left_w, center_w = 224, 404
+    _draw_usage_summary(c, t, m, m, left_w, H - 2 * m, style="terminal")
+
+    center_x = m + left_w + gap
+    c.card(center_x, m, center_w, H - 2 * m, r=8)
+    c.text((center_x + 12, m + 10), "ACTIVITY LOG · 30D", 10, th["text_dim"], "SemiBold")
+    _draw_daily_panel(c, t, center_x + 12, m + 31, center_w - 24, 57)
+    _heatmap(c, center_x + 12, m + 96, center_w - 24, t, cell=7, gap=1)
+    _draw_hourly_panel(c, t, center_x + 12, m + 162, center_w - 24, 56)
+    active = t.get("active_days", 0)
+    first = t.get("first_date")
+    since = first[5:].replace("-", "/") if first else "—"
+    c.d.line(c.s(center_x + 12, m + 224, center_x + center_w - 12, m + 224), fill=th["border"], width=SS)
+    c.text((center_x + 12, m + 230), f"{fmt_tokens(t.get('total_all', 0))} TOKENS  ·  {active} ACTIVE DAYS  ·  SINCE {since}", 8, th["text_dim"], "SemiBold")
+
+    right_x = center_x + center_w + gap
+    right_w = W - m - right_x
+    c.card(right_x, m, right_w, H - 2 * m, r=8)
+    _live_mark(c, right_x + 18, m + 19, th["up"])
+    c.text((right_x + 31, m + 12), "LIVE TELEMETRY", 10, th["text_dim"], "SemiBold")
+    values = _system_values(metrics, th)
+    values = [
+        (label, f"{value} {metrics['mem_used_gb']:.1f}/{metrics['mem_total_gb']:.0f}G", color)
+        if label == "MEM" else (label, value, color)
+        for label, value, color in values
+    ]
+    histories = [metrics["cpu_hist"], metrics["mem_hist"], metrics["power_hist"],
+                 metrics["temp_hist"], metrics["up_hist"], metrics["dl_hist"]]
+    for i, (item, hist) in enumerate(zip(values, histories)):
+        _system_row(c, right_x + 12, m + 35 + i * 23, right_w - 24, item, hist)
+    c.d.line(c.s(right_x + 12, m + 180, right_x + right_w - 12, m + 180), fill=th["border"], width=SS)
+    c.text((right_x + 12, m + 187), "MODEL DISTRIBUTION", 9, th["text_dim"], "SemiBold")
+    models = t.get("models", [])
+    if models:
+        total = t.get("today", 0) or 1
+        colors = th["models"]
+        x = right_x + 12
+        bar_y = m + 204
+        bar_w = right_w - 24
+        cursor = x
+        for i, (_, n) in enumerate(models):
+            part = bar_w * n / total
+            c.d.rectangle(c.s(cursor, bar_y, cursor + part, bar_y + 7), fill=colors[i % len(colors)])
+            cursor += part
+        row_x, row_w, row_top, row_h = right_x + 12, right_w - 24, m + 222, 17
+        for i, (name, tokens) in enumerate(models[:5]):
+            row_y = row_top + i * row_h
+            col = th["models"][i % len(th["models"])]
+            label = str(name)
+            while c.tw(label, 8, "Medium") > row_w - 80 and len(label) > 4:
+                label = label[:-2] + "…"
+            c.d.ellipse(c.s(row_x, row_y + 2, row_x + 5, row_y + 7), fill=col)
+            c.text((row_x + 8, row_y), label, 8, th["text"], "Medium")
+            c.text((row_x + row_w, row_y), f"{fmt_tokens(tokens)} · {tokens * 100 / total:.0f}%", 8, th["text_dim"], "SemiBold", anchor="ra")
+            c.hbar(row_x, row_y + 11, row_w, 2, tokens / total, col)
+    else:
+        c.text((right_x + 12, m + 205), "No model usage yet", 10, th["text_dim"], "Medium")
+    return c.img.resize((W, H), Image.LANCZOS)
+
+
+def render(metrics, token_stats, theme=None, layout="classic"):
     """metrics: cpu, cpu_hist, mem, mem_used_gb, mem_total_gb, mem_hist, power_w, power_hist,
     temp_c, temp_hist, up_bps, up_hist, dl_bps, dl_hist.
     token_stats: today, days(list of (date_str, tokens) oldest->newest, ~30), hours(24 ints),
     models(list of (name, tokens) sorted desc), total_7d, total_30d,
     heat(list of (date_str, tokens), full history), total_all, active_days, first_date."""
     th = resolve_theme(theme)
+    if layout == "token-focus":
+        return _render_token_focus(metrics, token_stats, th)
+    if layout == "system-first":
+        return _render_system_first(metrics, token_stats, th)
+    if layout == "constellation":
+        return _render_constellation(metrics, token_stats, th)
+    if layout == "signal-wave":
+        return _render_signal_wave(metrics, token_stats, th)
+    if layout == "telemetry":
+        return _render_telemetry(metrics, token_stats, th)
     c = _Ctx(th)
     WHITE, GRAY, DIM = th["text"], th["text_dim"], th["axis"]
     MODEL_COLORS = th["models"]
@@ -435,12 +824,16 @@ def token_stats_from_csv(path, now=None, ndays=30):
     return _aggregate(events, now, ndays)
 
 
-def iter_queue_events(path, source="cursor"):
+def iter_queue_events(path, source=None):
     """Yield (time, model, tokens) from TokenTracker's queue.jsonl.
 
     The file is append-only: a later row with the same source, model and
     hour_start replaces the earlier one. Cursor rows with billable_total_tokens
     below total_tokens are healed up to the total (TokenTracker issue #106).
+
+    source=None (the default) yields EVERY source: TokenTracker's dashboard
+    counts all of them, and its merged-usage.jsonl view — queue rows plus the
+    billing export — must match. Pass a source name to filter.
     """
     latest = {}
     with open(path, encoding="utf-8") as fh:
@@ -452,7 +845,9 @@ def iter_queue_events(path, source="cursor"):
                 row = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if (row.get("source") or "") != source or not row.get("hour_start"):
+            if source is not None and (row.get("source") or "") != source:
+                continue
+            if not row.get("hour_start"):
                 continue
             key = (row.get("source") or "", row.get("model") or "", row.get("hour_start"))
             latest[key] = row
@@ -469,8 +864,8 @@ def iter_queue_events(path, source="cursor"):
         yield ts, row.get("model") or "unknown", n
 
 
-def token_stats_from_queue(path, now=None, ndays=30, source="cursor"):
-    """Aggregate TokenTracker's queue.jsonl the way its dashboard does."""
+def token_stats_from_queue(path, now=None, ndays=30, source=None):
+    """Aggregate TokenTracker's queue.jsonl the way its dashboard does (all sources)."""
     return _aggregate(list(iter_queue_events(path, source)), now, ndays)
 
 

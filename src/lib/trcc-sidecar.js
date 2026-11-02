@@ -71,7 +71,7 @@ function resolveTrccLaunch(env = process.env) {
   return fromConfig() || fromSibling();
 }
 
-function startTrccSidecar({ spawnImpl = cp.spawn, log = (line) => process.stdout.write(line) } = {}) {
+function startTrccSidecar({ spawnImpl = cp.spawn, log = (line) => process.stdout.write(line), usageFile } = {}) {
   const spec = resolveTrccLaunch();
   if (!spec) {
     log("[trcc] side screen host not found; set %LOCALAPPDATA%\\TokenTracker\\trcc-host.json\n");
@@ -81,6 +81,7 @@ function startTrccSidecar({ spawnImpl = cp.spawn, log = (line) => process.stdout
   const args = spec.exe
     ? ["--serve", "--parent-pid", String(process.pid)]
     : [spec.main, "--serve", "--parent-pid", String(process.pid)];
+  if (usageFile) args.push("--usage-file", usageFile);
   let child;
   try {
     child = spawnImpl(command, args, {

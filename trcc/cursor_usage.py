@@ -257,9 +257,11 @@ def _stats_stale(stats, now: dt.datetime) -> bool:
 
 
 class CursorUsage:
-    def __init__(self, refresh_s: float = DEFAULT_REFRESH_S, csv_override: Optional[Path] = None):
+    def __init__(self, refresh_s: float = DEFAULT_REFRESH_S, csv_override: Optional[Path] = None,
+                 usage_file: Optional[Path] = None):
         self.refresh_s = refresh_s
         self.csv_override = Path(csv_override) if csv_override else None
+        self.usage_file = Path(usage_file) if usage_file else None
         self._last_fetch = 0.0
         self._stats = None
         self._source: Optional[Path] = None    # CSV the current stats came from
@@ -394,6 +396,22 @@ class CursorUsage:
             and self._stats is not None
             and (now - self._last_fetch) < self.refresh_s
         ):
+            return self._stats
+
+        # Hosted by TokenTracker: its merged view is the single display source
+        # (all local provider rows plus the X billing rows written by this
+        # sidecar). The sidecar still owns the X billing refresh, but never
+        # substitutes its private Cursor CSV/cache for TokenTracker's data.
+        if self.usage_file is not None:
+            self._refresh_grok()
+            try:
+                if self.usage_file.is_file():
+                    self._load(self.usage_file)
+                    self.last_ok_wall = time.time()
+                    return self._stats
+                self._use_local()
+            except Exception as e:
+                self._error = str(e)
             return self._stats
 
         if self._refresh_grok():
