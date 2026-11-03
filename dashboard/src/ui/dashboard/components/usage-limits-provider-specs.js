@@ -197,30 +197,49 @@ export const PROVIDER_LIMIT_SPECS = {
       ];
     },
   },
+  mimo: {
+    // Mimo Token Plan: one monthly token allowance, locally estimated from
+    // opencode.db (Xiaomi exposes no quota API for API keys). The reset date
+    // is calendar-derived, so no windowSeconds-based pacing projection.
+    windows(data) {
+      return [
+        { key: "plan", labelKey: "limits.label.mimo_token_plan", window: data.primary_window },
+      ];
+    },
+  },
+  // Every Qoder fetch path (desktop RPC, CN CLI OpenAPI, cookie API, log
+  // summary) already carries used/limit/remaining per window, so the inline
+  // detail mirrors WorkBuddy's card. creditPrecision must be explicit: the
+  // default rounds amounts ≥100 to integers, which would hide fractional
+  // add-on credits. The three buckets mirror Qoder's own Credits page.
   qoder: {
     windows(data) {
       return [
-        { key: "credits", labelKey: "limits.label.qoder_credits", window: dropEmptyQoderWindow(data.primary_window) },
-        { key: "addon", labelKey: "limits.label.qoder_addon_credits", window: dropEmptyQoderWindow(data.tertiary_window) },
+        { key: "credits", labelKey: "limits.label.qoder_credits", window: dropEmptyQoderWindow(data.primary_window), creditPrecision: 2, showCreditDetail: true },
+        { key: "addon", labelKey: "limits.label.qoder_addon_credits", window: dropEmptyQoderWindow(data.tertiary_window), creditPrecision: 2, showCreditDetail: true },
         {
           key: "ultimate",
           labelKey: "limits.label.qoder_ultimate",
           window: data.secondary_window,
           timeKind: "expiry",
+          showCreditDetail: true,
         },
       ];
     },
   },
+  // Same windows and detail as the international edition; only the labels
+  // differ between the two installs.
   qoderCn: {
     windows(data) {
       return [
-        { key: "credits", labelKey: "limits.label.qoder_cn_credits", window: dropEmptyQoderWindow(data.primary_window) },
-        { key: "addon", labelKey: "limits.label.qoder_cn_addon_credits", window: dropEmptyQoderWindow(data.tertiary_window) },
+        { key: "credits", labelKey: "limits.label.qoder_cn_credits", window: dropEmptyQoderWindow(data.primary_window), creditPrecision: 2, showCreditDetail: true },
+        { key: "addon", labelKey: "limits.label.qoder_cn_addon_credits", window: dropEmptyQoderWindow(data.tertiary_window), creditPrecision: 2, showCreditDetail: true },
         {
           key: "ultimate",
           labelKey: "limits.label.qoder_cn_ultimate",
           window: data.secondary_window,
           timeKind: "expiry",
+          showCreditDetail: true,
         },
       ];
     },
@@ -287,6 +306,15 @@ export const PROVIDER_LIMIT_SPECS = {
   workbuddyAi: {
     windows(data) {
       return PROVIDER_LIMIT_SPECS.workbuddy.windows(data);
+    },
+  },
+  // DeepSeek (platform.deepseek.com) is pay-as-you-go and publishes no quota
+  // windows: the balance card renders through the deepseek_balance extra, so
+  // the window list stays empty and no fake "used 0" bar can appear (issue 960).
+  deepseek: {
+    extra: "deepseek_balance",
+    windows() {
+      return [];
     },
   },
 };
@@ -369,6 +397,7 @@ export function usageLimitsLabelCopyAnchor() {
     copy("limits.label.opencode_go_5h"),
     copy("limits.label.opencode_go_weekly"),
     copy("limits.label.opencode_go_monthly"),
+    copy("limits.label.mimo_token_plan"),
     copy("limits.label.qoder_credits"),
     copy("limits.label.qoder_ultimate"),
     copy("limits.label.qoder_cn_credits"),

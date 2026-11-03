@@ -133,18 +133,20 @@ async function readBillingEvents(billingPath) {
 //
 // Returns queue-shaped rows:
 //   - non-cursor queue sources (opencode, codex, ...) always pass through;
-//   - queue *cursor* is dropped on any UTC+8 date the billing export covers for
-//     the cursor product (billing is authoritative there), and kept elsewhere;
+//   - queue *cursor* and *grok-bot* rows are dropped on any UTC+8 date the
+//     billing export covers for the matching product (billing is authoritative
+//     there), and kept elsewhere;
 //   - every billing event becomes a synthesized row (cursor or grok-bot) with
 //     total = billable = tokens and no input/output split, so its cost is $0.
 //
-// Coverage is computed per product: grok-bot rows for a date never suppress
-// queue cursor for that date, because the export may bill grok usage on days it
-// has no cursor line items.
+// Coverage is computed per product: billing for one product never suppresses
+// queue rows for another product on the same date.
 function buildMergedRows(queueRows, billingEvents) {
   const cursorCoveredDates = new Set();
+  const grokBotCoveredDates = new Set();
   for (const event of billingEvents) {
     if (event.product === "cursor") cursorCoveredDates.add(localDateKey(event.ms));
+    if (event.product === "grok-bot") grokBotCoveredDates.add(localDateKey(event.ms));
   }
 
   const rows = [];
@@ -154,6 +156,9 @@ function buildMergedRows(queueRows, billingEvents) {
     const ms = row.hour_start ? parseInstant(row.hour_start) : null;
     if (row.source === "cursor" && ms != null && cursorCoveredDates.has(localDateKey(ms))) {
       continue; // billing owns cursor on this date
+    }
+    if (row.source === "grok-bot" && ms != null && grokBotCoveredDates.has(localDateKey(ms))) {
+      continue; // billing owns Grok Bot on this date
     }
     const key = queueRowKey(row);
     if (seen.has(key)) continue;
