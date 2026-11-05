@@ -14,7 +14,7 @@ hiddenimports = [
     'pythoncom',
     'pywintypes',
     'pystray._win32',
-    'grok_billing',
+    'usage_reader',
     'host',
     'control_api',
     'theme_edit',

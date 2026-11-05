@@ -191,27 +191,13 @@ test("ensureMergedUsage returns null and writes nothing when the billing store i
   assert.equal(fs.existsSync(mergedPath), false);
 });
 
-test("resolveGrokBillingPath refuses a store outside the queue's profile home", (t) => {
-  // Sandboxed queues redirect HOME/USERPROFILE to a temp dir while
-  // LOCALAPPDATA still points at the real profile — merging the real billing
-  // export into a fixture would corrupt totals and leak user data.
+test("resolveGrokBillingPath sits beside the queue in any profile home", (t) => {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "tt-home-"));
   t.after(() => fs.rmSync(sandbox, { recursive: true, force: true }));
+  const queuePath = path.join(sandbox, ".tokentracker", "tracker", "queue.jsonl");
   assert.equal(
-    resolveGrokBillingPath(path.join(sandbox, ".tokentracker", "tracker", "queue.jsonl")),
-    null,
-  );
-  // The canonical layout keeps queue and store under the same profile.
-  const store = resolveGrokBillingPath(
-    path.join(os.homedir(), ".tokentracker", "tracker", "queue.jsonl"),
-  );
-  assert.equal(
-    store,
-    path.join(
-      process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"),
-      "trcc-token-dash",
-      "grok-billing.jsonl",
-    ),
+    resolveGrokBillingPath(queuePath),
+    path.join(sandbox, ".tokentracker", "tracker", "grok-billing.jsonl"),
   );
 });
 

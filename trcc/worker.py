@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 from device import BulkLcd, DeviceBusyError, orient_image
 from render import render, placeholder_metrics, W, H
 from sysmetrics import MetricsCollector
-from cursor_usage import CursorUsage
+from usage_reader import UsageReader
 
 log = logging.getLogger("trcc_dash.worker")
 
@@ -51,7 +51,7 @@ class PushWorker(threading.Thread):
         self._dirty = threading.Event()
         self._pushing = bool(settings.get("autostart", True))
         self._vid, self._pid = vid, pid
-        self.usage = CursorUsage(csv_override=csv_override, usage_file=usage_file)
+        self.usage = UsageReader(csv_override=csv_override, usage_file=usage_file)
         self._preview = None          # oriented PIL image, as sent
         self._preview_seq = 0
         self._status: Dict[str, Any] = {

@@ -129,54 +129,14 @@ def test_csv_crlf_and_bad_rows():
 
 
 def test_usage_current_reaggregates_after_rollover():
-    from cursor_usage import CursorUsage
-    u = CursorUsage(csv_override=CSV)
+    from usage_reader import UsageReader
+    u = UsageReader(csv_override=CSV)
     u.get_stats()
     stale = dict(u._stats)
     stale["days"] = stale["days"][:-1]          # pretend built yesterday
     u._stats = stale
     cur = u.current()
     assert cur["days"][-1][0] == dt.datetime.now(TZ).date().isoformat()
-
-
-def _make_state_db() -> Path:
-    import sqlite3
-    p = Path(tempfile.mkdtemp()) / "state.vscdb"
-    con = sqlite3.connect(p)
-    con.execute("CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)")
-    con.execute("INSERT INTO ItemTable VALUES (?, ?)", ("cursorAuth/accessToken", "a.b.c-token-value"))
-    con.commit()
-    con.close()
-    return p
-
-
-def test_read_token_never_loads_whole_db():
-    # state.vscdb reached 40 GB on the dev box; v5 read_bytes() it and hung
-    import cursor_usage
-    db = _make_state_db()
-    orig = Path.read_bytes
-    def boom(self):
-        if self.suffix == ".vscdb":
-            raise AssertionError("state.vscdb must not be read whole")
-        return orig(self)
-    Path.read_bytes = boom
-    try:
-        assert cursor_usage._read_access_token(db) == "a.b.c-token-value"
-    finally:
-        Path.read_bytes = orig
-
-
-def test_read_token_while_db_locked():
-    import sqlite3
-    import cursor_usage
-    db = _make_state_db()
-    locker = sqlite3.connect(db, isolation_level=None)
-    locker.execute("BEGIN EXCLUSIVE")
-    try:
-        assert cursor_usage._read_access_token(db) == "a.b.c-token-value"
-    finally:
-        locker.execute("ROLLBACK")
-        locker.close()
 
 
 def test_sensor_picking():
@@ -461,22 +421,11 @@ def test_host_settings_and_parent():
     assert not parent_alive(2_100_000_000)
 
 
-def test_usage_csv_rejects_error_page():
-    from cursor_usage import usage_csv_problem
-    bad = "Date,Kind,Model,Total Tokens,Cost\n# Error fetching data on page 1: ConnectError: [aborted] Error\n"
-    assert "aborted" in usage_csv_problem(bad)
-    good = "Date,Model,Total Tokens\n2026-11-01T01:00:00Z,auto,10\n"
-    assert usage_csv_problem(good) is None
-    assert usage_csv_problem("not a csv")
-
-
 def test_queue_dedup_timezone_and_billable_heal():
     import json, tempfile
     from render import token_stats_from_queue, TZ
     p = Path(tempfile.mkdtemp()) / "queue.jsonl"
     rows = [
-        {"source": "opencode", "model": "x", "hour_start": "2026-11-01T02:00:00.000Z",
-         "total_tokens": 999, "billable_total_tokens": 999},
         {"source": "cursor", "model": "auto", "hour_start": "2026-11-01T02:00:00.000Z",
          "total_tokens": 100, "billable_total_tokens": 0},
         {"source": "cursor", "model": "auto", "hour_start": "2026-11-01T02:00:00.000Z",
@@ -493,85 +442,6 @@ def test_queue_dedup_timezone_and_billable_heal():
     assert s["hours"][10] == 75 and s["hours"][11] == 40
     assert s["models"][0] == ("auto", 75)
     assert s["total_all"] == 115 and s["active_days"] == 1
-
-
-def test_grok_billing_merge_and_queue_fill():
-    import json, tempfile
-    from grok_billing import events_from_csv, merge_store, stats_from_store
-    folder = Path(tempfile.mkdtemp())
-    csv_path = folder / "usage.csv"
-    usage = json.dumps({
-        "prompt-text-tokens": 10,
-        "completion-text-tokens": 5,
-        "cached-prompt-text-tokens": 3,
-        "cache-write-text-tokens": 2,
-    })
-    header = (
-        "Billing Item ID,Event Time,Product,Charge Category,Usage Type,"
-        "Principal Type,Principal ID,Usage,Pricing Currency,Pricing Contracted,Model,User Email"
-    )
-    import csv as csvmod
-    with csv_path.open("w", encoding="utf-8", newline="") as fh:
-        writer = csvmod.DictWriter(fh, fieldnames=header.split(","))
-        writer.writeheader()
-        writer.writerow({
-            "Billing Item ID": "id1",
-            "Event Time": "2026-11-01T02:00:00.000Z",
-            "Product": "cursor",
-            "Charge Category": "usage",
-            "Usage Type": "included",
-            "Principal Type": "user",
-            "Principal ID": "secret",
-            "Usage": usage,
-            "Pricing Currency": "USD",
-            "Pricing Contracted": "0",
-            "Model": "auto",
-            "User Email": "hidden@example.com",
-        })
-        writer.writerow({
-            "Billing Item ID": "id1",
-            "Event Time": "2026-11-01T02:00:00.000Z",
-            "Product": "cursor",
-            "Charge Category": "usage",
-            "Usage Type": "included",
-            "Principal Type": "user",
-            "Principal ID": "secret",
-            "Usage": json.dumps({"prompt-text-tokens": 7, "completion-text-tokens": 1}),
-            "Pricing Currency": "USD",
-            "Pricing Contracted": "0",
-            "Model": "auto",
-            "User Email": "hidden@example.com",
-        })
-    events = events_from_csv(csv_path)
-    assert len(events) == 2 and events[0]["tokens"] == 20 and events[1]["tokens"] == 8
-    store = folder / "grok-billing.jsonl"
-    assert merge_store(events[:1], store) == 1
-    assert merge_store(events[1:], store) == 1
-    assert merge_store(events[1:], store) == 0
-    queue = folder / "queue.jsonl"
-    queue.write_text("\n".join(json.dumps(r) for r in [
-        {"source": "cursor", "model": "old", "hour_start": "2026-11-01T01:00:00.000Z",
-         "total_tokens": 999, "billable_total_tokens": 999},
-        {"source": "cursor", "model": "old", "hour_start": "2026-10-31T01:00:00.000Z",
-         "total_tokens": 40, "billable_total_tokens": 40},
-    ]) + "\n", encoding="utf-8")
-    stats = stats_from_store(store, now=dt.datetime(2026, 11, 1, 12, tzinfo=TZ), queue_path=queue)
-    # Nov 1 comes from the billing export (8), not the queue's 999. Oct 31 stays.
-    assert stats["today"] == 8
-    assert stats["hours"][10] == 8
-    assert stats["total_all"] == 48
-    saved = store.read_text(encoding="utf-8")
-    assert "hidden@example.com" not in saved and "secret" not in saved
-
-
-def test_grok_hide_helpers_see_this_process():
-    import os
-    from grok_billing import _NO_WINDOW, _descendants, _hidden_kwargs
-    assert _NO_WINDOW != 0
-    assert os.getpid() in _descendants(os.getpid())
-    flags = _hidden_kwargs()
-    assert flags["creationflags"] == _NO_WINDOW
-    assert flags["startupinfo"].wShowWindow == 0
 
 
 def test_preview_render():
@@ -597,8 +467,6 @@ if __name__ == "__main__":
         test_today_zero_when_no_usage_today,
         test_csv_crlf_and_bad_rows,
         test_usage_current_reaggregates_after_rollover,
-        test_read_token_never_loads_whole_db,
-        test_read_token_while_db_locked,
         test_sensor_picking,
         test_sensor_source_priority,
         test_find_libusb_source_tree,
@@ -607,10 +475,7 @@ if __name__ == "__main__":
         test_control_api_port_taken,
         test_theme_edit_derived_shades,
         test_host_settings_and_parent,
-        test_usage_csv_rejects_error_page,
         test_queue_dedup_timezone_and_billable_heal,
-        test_grok_billing_merge_and_queue_fill,
-        test_grok_hide_helpers_see_this_process,
         test_preview_render,
     ):
         fn()

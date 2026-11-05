@@ -12,6 +12,10 @@ const { openInBrowser } = require("../lib/browser-auth");
 const { maybeShowStarCta } = require("../lib/star-cta");
 const { startTrccSidecar } = require("../lib/trcc-sidecar");
 const { ensureMergedUsage } = require("../lib/merged-usage");
+const {
+  migrateLegacyGrokBilling,
+  refreshGrokBillingExport,
+} = require("../lib/grok-billing-export");
 
 const DEFAULT_PORT = 7680;
 // Windows Delivery Optimization (DoSvc) listens on 0.0.0.0:7680 on virtually
@@ -270,17 +274,28 @@ async function cmdServe(argv) {
     usageFile: path.join(path.dirname(queuePath), "merged-usage.jsonl"),
   });
 
-  // Keep merged-usage.jsonl (queue + TRCC grok-billing export) fresh even when
-  // no dashboard tab is polling the usage endpoints: the 副屏 reads it
-  // directly. Rebuilds are signature-gated inside ensureMergedUsage, so a no-op
-  // tick is a pair of stat() calls; the interval is unref'd so it never holds
-  // the process open.
+  // Keep merged-usage.jsonl (queue + grok-billing export) fresh even when no
+  // dashboard tab is polling. The sidecar only reads merged-usage.jsonl.
+  // X-subscription billing download (Edge) runs here in TokenTracker, not TRCC.
   {
+    const GROK_BILLING_REFRESH_MS = 90_000;
     const refreshMergedUsage = () =>
       ensureMergedUsage({ queuePath }).catch((e) =>
         process.stdout.write(`Merged usage refresh warning: ${e?.message || e}\n`),
       );
-    refreshMergedUsage();
+    const refreshBillingAndMerge = () =>
+      (process.platform === "win32"
+        ? refreshGrokBillingExport({ queuePath })
+            .then(() => refreshMergedUsage())
+            .catch((e) =>
+              process.stdout.write(`Grok billing refresh warning: ${e?.message || e}\n`),
+            )
+        : refreshMergedUsage());
+    if (process.platform === "win32") {
+      migrateLegacyGrokBilling({ queuePath }).catch(() => {});
+    }
+    refreshBillingAndMerge();
+    setInterval(refreshBillingAndMerge, GROK_BILLING_REFRESH_MS).unref();
     setInterval(refreshMergedUsage, 30_000).unref();
   }
 

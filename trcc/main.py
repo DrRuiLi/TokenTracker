@@ -44,7 +44,7 @@ sys.path.insert(0, str(BASE))
 
 from render import render, placeholder_metrics, token_stats_from_csv  # noqa: E402
 from sysmetrics import MetricsCollector  # noqa: E402
-from cursor_usage import CursorUsage  # noqa: E402
+from usage_reader import UsageReader  # noqa: E402
 from device import VID, PID, orient_image  # noqa: E402
 from worker import PushWorker, empty_stats  # noqa: E402
 import settings as cfg  # noqa: E402
@@ -118,7 +118,7 @@ def run_preview(path: Path, csv: Path | None, args=None):
     if csv and csv.is_file():
         stats = token_stats_from_csv(csv)
     else:
-        usage = CursorUsage(csv_override=csv)
+        usage = UsageReader(csv_override=csv)
         usage.get_stats(force=True)
         stats = usage.current()
     metrics = None

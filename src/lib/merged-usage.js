@@ -3,8 +3,11 @@ const fsp = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 
-// The TRCC side screen and its X-subscription billing export are anchored to
-// Asia/Shanghai (UTC+8), matching trcc/grok_billing.py and trcc/worker.py. The
+const { resolveGrokBillingPath } = require("./grok-billing-export");
+
+// The TRCC side screen and the X-subscription billing export are anchored to
+// Asia/Shanghai (UTC+8), matching TokenTracker merged usage and the sidecar
+// reader. The
 // offset is a whole number of hours, so flooring an instant to its hour is the
 // same boundary in UTC and UTC+8; only the calendar *date* needs the shift.
 const TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -18,28 +21,6 @@ const NON_USAGE_KINDS = new Set(["account_session_state", "account_sync_watermar
 // dashboard reader with no behavioural drift.
 function queueRowKey(row) {
   return `${row.source || ""}|${row.model || ""}|${row.hour_start || ""}`;
-}
-
-// Billing store path, mirroring trcc/grok_billing.py#app_dir + store_path.
-//
-// The store is machine-global (%LOCALAPPDATA%), but it belongs to the same
-// user profile as the queue. When a queuePath is given, only trust the store
-// if it lives under that queue's profile home — test sandboxes redirect
-// HOME/USERPROFILE to a temp dir while leaving LOCALAPPDATA pointing at the
-// real profile, and merging real billing rows into a fixture would corrupt
-// totals and leak user data. Returns null when no store applies.
-function resolveGrokBillingPath(queuePath) {
-  const base =
-    process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
-  if (queuePath) {
-    // <home>/.tokentracker/tracker/queue.jsonl -> <home>
-    const queueHome = path.dirname(
-      path.dirname(path.dirname(path.resolve(queuePath))),
-    );
-    const rel = path.relative(queueHome, path.resolve(base));
-    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
-  }
-  return path.join(base, "trcc-token-dash", "grok-billing.jsonl");
 }
 
 // The merged view lives beside the queue so it inherits the queue directory and
