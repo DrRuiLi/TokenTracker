@@ -972,5 +972,18 @@
   "trcc.reset.body": "旋转、颜色和刷新间隔都会恢复为默认值。",
   "trcc.reset.confirm": "恢复",
   "trcc.cancel": "取消",
-  "trcc.error.save": "操作失败：{{error}}"
+  "trcc.error.save": "操作失败：{{error}}",
+  "trcc.grok.title": "X 订阅用量",
+  "trcc.grok.hint": "打开专用 Edge 窗口登录 grok.com。TokenTracker 会记住这次登录，供副屏读取用量。登录完成后请关闭该窗口。",
+  "trcc.grok.login": "登录",
+  "trcc.grok.button": "X 登录",
+  "trcc.grok.signed_in": "已登录",
+  "trcc.grok.signed_out": "未登录",
+  "trcc.grok.checking": "正在检查登录状态…",
+  "trcc.grok.opened": "已打开 Edge 登录窗口，登录完成后请关闭它。",
+  "trcc.grok.unsupported": "X 订阅登录仅在 Windows 上可用。",
+  "trcc.grok.local_only": "请在本机 TokenTracker 应用中登录。",
+  "trcc.grok.status_in": "已登录 grok.com",
+  "trcc.grok.status_out": "尚未登录 grok.com",
+  "trcc.grok.status_unknown": "暂时读不到 grok.com 的登录状态"
 }

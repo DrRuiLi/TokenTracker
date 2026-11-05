@@ -8,6 +8,7 @@ const crypto = require("node:crypto");
 const { setImmediate: yieldToRequests } = require("node:timers/promises");
 const { createAsyncQueueReader } = require("./async-queue-reader");
 const { ensureMergedUsage } = require("./merged-usage");
+const { handleGrokLoginRoute } = require("./grok-login-route");
 const { DEFAULT_BASE_URL, resolveRuntimeConfig, assertInsforgeRuntime, normalizeInstanceBaseUrl, clearDeviceIdentity, resetInstanceState } = require("./runtime-config");
 const {
   filterRowsByUsageScope,
@@ -1146,22 +1147,18 @@ function buildProxyHeaders(headers) {
 
 function createLocalApiHandler({ queuePath, serverVersion = null, trackerDataDir: isolatedTrackerDataDir = null, syncContext = null }) {
   const qp = queuePath || resolveQueuePath();
-  // The grok-billing store is machine-global (TRCC side screen, %LOCALAPPDATA%),
-  // not per queue directory, so only the canonical queue may merge with it.
-  // Isolated queues (tests, sync sandboxes, custom trackerDataDir) keep raw
-  // queue semantics — merging real billing rows into a fixture would corrupt
-  // totals and leak user data into test assertions.
+  // grok-billing.jsonl lives beside the queue; only the canonical queue merges
+  // billing into merged-usage.jsonl. Isolated queues (tests, sandboxes) keep
+  // raw queue semantics.
   const mergedUsageEnabled = path.resolve(qp) === path.resolve(resolveQueuePath());
   const localUsage = createLocalUsageTransfer({ queuePath: qp, normalizeRow: normalizeQueueRow,
     identity: () => ({ id: getOrCreateMachineId(qp), name: getSystemDeviceName(), platform: process.platform }) });
   async function scopedQueueRows(queuePath, url) {
     const scope = getRequestedUsageScope(url);
-    // Single merged usage source: queue.jsonl + the TRCC side screen's
-    // grok-billing.jsonl, rebuilt only when either input changed. Returns null
-    // when no billing export applies (isolated queue / store absent), in which
-    // case the raw queue IS the merged view. Deep per-source analytics
-    // (codex/claude/grok breakdowns, achievements, project usage) intentionally
-    // keep reading the raw queue.
+    // Single merged usage source: queue.jsonl + grok-billing.jsonl (TokenTracker
+    // X-subscription export), rebuilt when either input changes. Deep per-source
+    // analytics (codex/claude/grok breakdowns, achievements, project usage)
+    // intentionally keep reading the raw queue.
     let ownRows = null;
     if (mergedUsageEnabled) {
       try {
@@ -1873,6 +1870,11 @@ function createLocalApiHandler({ queuePath, serverVersion = null, trackerDataDir
 
   return async function handleLocalApi(req, res, url) {
     const p = url.pathname;
+    // TRCC: X-subscription Edge login. Implementation lives in grok-login-route.js.
+    if (await handleGrokLoginRoute(req, res, url, {
+      queuePath: qp,
+      isAuthorized: isAuthorizedLocalMutation,
+    })) return true;
     if (p === "/api/deepseek-status") return relayProviderStatus("deepseek", "DeepSeek")(req, res);
     if (p === "/api/opencode-status") return relayProviderStatus("opencode", "OpenCode")(req, res);
     if (p === "/api/local-usage") {

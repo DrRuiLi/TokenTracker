@@ -2236,3 +2236,16 @@ trcc.reset.body,ui,TrccPage,TrccPage,reset_body,"Rotation, colors and refresh in
 trcc.reset.confirm,ui,TrccPage,TrccPage,reset_confirm,Reset,,active
 trcc.cancel,ui,TrccPage,TrccPage,cancel,Cancel,,active
 trcc.error.save,ui,TrccPage,TrccPage,error_save,Couldn't apply: {{error}},,active
+trcc.grok.title,ui,TrccPage,GrokLoginCard,grok_title,X subscription,,active
+trcc.grok.hint,ui,TrccPage,GrokLoginCard,grok_hint,"Opens a dedicated Edge window for grok.com. TokenTracker keeps that sign-in for the side screen. Close the window when you are done.",,active
+trcc.grok.login,ui,TrccPage,GrokLoginCard,grok_login,Sign in,,active
+trcc.grok.button,ui,LimitsPage,GrokXLoginButton,grok_button,X sign-in,,active
+trcc.grok.signed_in,ui,TrccPage,GrokLoginCard,grok_signed_in,Signed in,,active
+trcc.grok.signed_out,ui,TrccPage,GrokLoginCard,grok_signed_out,Not signed in,,active
+trcc.grok.checking,ui,TrccPage,GrokLoginCard,grok_checking,Checking sign-in…,,active
+trcc.grok.opened,ui,TrccPage,GrokLoginCard,grok_opened,Edge sign-in window opened. Close it after you finish.,,active
+trcc.grok.unsupported,ui,TrccPage,GrokLoginCard,grok_unsupported,X subscription sign-in runs on Windows only.,,active
+trcc.grok.local_only,ui,TrccPage,GrokLoginCard,grok_local_only,Sign-in is available in the local TokenTracker app.,,active
+trcc.grok.status_in,ui,LimitsPage,CursorGrokLoginStatus,grok_status_in,Signed in to grok.com,,active
+trcc.grok.status_out,ui,LimitsPage,CursorGrokLoginStatus,grok_status_out,Not signed in to grok.com,,active
+trcc.grok.status_unknown,ui,LimitsPage,CursorGrokLoginStatus,grok_status_unknown,grok.com sign-in could not be read yet,,active

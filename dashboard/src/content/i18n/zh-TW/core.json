@@ -913,5 +913,18 @@
   "trcc.reset.body": "旋轉、顏色和更新間隔都會恢復為預設值。",
   "trcc.reset.confirm": "恢復",
   "trcc.cancel": "取消",
-  "trcc.error.save": "操作失敗：{{error}}"
+  "trcc.error.save": "操作失敗：{{error}}",
+  "trcc.grok.title": "X 訂閱用量",
+  "trcc.grok.hint": "開啟專用 Edge 視窗登入 grok.com。TokenTracker 會記住這次登入，供副螢幕讀取用量。登入完成後請關閉該視窗。",
+  "trcc.grok.login": "登入",
+  "trcc.grok.button": "X 登入",
+  "trcc.grok.signed_in": "已登入",
+  "trcc.grok.signed_out": "未登入",
+  "trcc.grok.checking": "正在檢查登入狀態…",
+  "trcc.grok.opened": "已開啟 Edge 登入視窗，登入完成後請關閉它。",
+  "trcc.grok.unsupported": "X 訂閱登入僅在 Windows 上可用。",
+  "trcc.grok.local_only": "請在本機 TokenTracker 應用程式中登入。",
+  "trcc.grok.status_in": "已登入 grok.com",
+  "trcc.grok.status_out": "尚未登入 grok.com",
+  "trcc.grok.status_unknown": "暫時讀不到 grok.com 的登入狀態"
 }

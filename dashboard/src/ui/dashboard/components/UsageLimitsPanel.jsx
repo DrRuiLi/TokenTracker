@@ -12,6 +12,8 @@ import { computePace, resetToMs, resolveWindowSeconds } from "../../../lib/limit
 import { ProviderIcon } from "./ProviderIcon.jsx";
 import { buildResetBankRows } from "./usage-limits-reset-bank.js";
 import { PROVIDER_LIMIT_SPECS } from "./usage-limits-provider-specs.js";
+import { GrokXLoginButton } from "./GrokXLoginButton.jsx";
+import { CursorGrokLoginStatus } from "./CursorGrokLoginStatus.jsx";
 import { HoverTooltip } from "../../components/HoverTooltip.jsx";
 import { cycleView, countdownText, remainingLabel } from "../../../lib/subscription-display.js";
 import { saveProviderApiKey } from "../../../lib/api";
@@ -409,7 +411,7 @@ function StatusBadge({ label, age = null, tone = "live", tooltip = null }) {
   );
 }
 
-function ToolGroup({ name, providerId, children, expandable = false, expanded = false, onToggle, badge = null, rightAdornment = null, toggleOnHeader = false }) {
+function ToolGroup({ name, providerId, children, expandable = false, expanded = false, onToggle, badge = null, rightAdornment = null, headerAction = null, toggleOnHeader = false }) {
   const providerKey = limitProviderIconKey(providerId);
   const header = (
     <div className="flex min-w-0 items-center gap-3">
@@ -421,12 +423,20 @@ function ToolGroup({ name, providerId, children, expandable = false, expanded = 
       {badge}
     </div>
   );
+  const end = (
+    <div className="ml-auto flex shrink-0 items-center gap-2">
+      {headerAction}
+      {expandable ? (
+        <ChevronDown size={16} aria-hidden className={`shrink-0 text-oai-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      ) : null}
+    </div>
+  );
   const cardClass = "rounded-xl border border-oai-gray-200 bg-white dark:border-oai-gray-800 dark:bg-oai-gray-900";
   const headerClass = "flex w-full items-center justify-between gap-3 border-b border-oai-gray-200 px-4 py-4 text-left dark:border-oai-gray-800 sm:px-5";
   const body = <div className="flex flex-col gap-2 px-4 py-4 sm:px-5">{children}</div>;
 
   if (!expandable) {
-    return <div className={cardClass}><div className={headerClass}>{header}</div>{body}</div>;
+    return <div className={cardClass}><div className={headerClass}>{header}{headerAction ? end : null}</div>{body}</div>;
   }
 
   if (toggleOnHeader) {
@@ -453,7 +463,7 @@ function ToolGroup({ name, providerId, children, expandable = false, expanded = 
       className={`${cardClass} cursor-pointer transition-colors hover:border-oai-gray-300 dark:hover:border-oai-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oai-brand-500`}>
       <div className={headerClass}>
         {header}
-        <ChevronDown size={16} aria-hidden className={`shrink-0 text-oai-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        {end}
       </div>
       {body}
     </div>
@@ -1023,6 +1033,7 @@ function renderConfiguredProvider(id, data, title, mode, expanded, onToggle, bad
       onToggle={onToggle}
       badge={badge}
       rightAdornment={subscription ? <SubscriptionRightBadge subscription={subscription} /> : null}
+      headerAction={id === "cursor" ? <GrokXLoginButton /> : null}
       toggleOnHeader={id === "zcode"}
     >
       <LimitWindowSection mode={mode} rows={rows} extra={extra} expanded={expanded} />
@@ -1059,6 +1070,7 @@ function renderUnlinkedProvider(id, statusNodes, expanded, onToggle, subscriptio
       expanded={expanded}
       onToggle={onToggle}
       rightAdornment={hasSubscription ? <SubscriptionRightBadge subscription={subscription} /> : null}
+      headerAction={id === "cursor" ? <GrokXLoginButton /> : null}
     >
       {statusNodes}
       {hasSubscription ? <SubscriptionBar subscription={subscription} now={now} mode={mode} /> : null}
@@ -1107,7 +1119,11 @@ function renderProviderGroup(id, data, mode, expanded, onToggle, subscription = 
     return renderUnlinkedProvider(
       id,
       <>
-        <StatusLine tone="error">{data.error}</StatusLine>
+        {id === "cursor" ? (
+          <CursorGrokLoginStatus fallback={<StatusLine tone="error">{data.error}</StatusLine>} />
+        ) : (
+          <StatusLine tone="error">{data.error}</StatusLine>
+        )}
         {id === "kiro"
           ? renderProviderExtra(PROVIDER_LIMIT_SPECS.kiro.extra, data)
           : null}
