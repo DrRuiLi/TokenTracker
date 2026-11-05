@@ -1,3 +1,8 @@
+> **本フォーク（[DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)）は [上流 Token Tracker](https://github.com/xiufengsun/TokenTracker) に次を追加しています：**
+>
+> - **TRCC サブディスプレイ制御パネル** — Windows トレイ版は `tracker serve` とともに Thermalright **HydroNous R1** サブディスプレイ（960×320 USB）を駆動。ローカルダッシュボードの **「ツール」→ `/trcc`** でプレビュー、レイアウト／テーマ、プッシュを制御。USB Bulk フレームプロトコルは [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) を改変（GPL-3.0、`trcc/NOTICE` 参照）。
+> - **X サブスクリプションの使用量** — ダッシュボードで X アカウントにサインインすると、TokenTracker が **grok.com** の請求 CSV を取得し、ローカル hook の使用量とマージ。サブディスプレイとメインダッシュボードはマージ後の統計を共有（詳細は `trcc/README.md` と `AI_CONTEXT.md`）。
+
  <div align="center">
 
 # Token Tracker
