@@ -185,7 +185,7 @@ const {
 const { purgeProjectUsage } = require("../lib/project-usage-purge");
 const {
   fetchTraeCnUsageWithAuth,
-  resolveTraeCnStoragePath,
+  readTraeCnAuthFromStorage,
   isTraeCnUsageEnabled,
 } = require("../lib/trae-cn-config");
 const {
@@ -2315,9 +2315,10 @@ async function cmdSync(argv, context = {}) {
         Math.floor((endTime - 30 * 24 * 60 * 60) / HALF_HOUR_SEC) * HALF_HOUR_SEC,
       );
       try {
-        // Absent storage means "not signed in" — a silent skip, not an error.
-        const traeCnStoragePath = resolveTraeCnStoragePath({ env: process.env, home });
-        if (traeCnStoragePath && fssync.existsSync(traeCnStoragePath)) {
+        // Read through junctions and let the credential-safe reader distinguish
+        // missing auth from access/IO errors. existsSync masks both as absent.
+        const traeCnAuth = readTraeCnAuthFromStorage({ env: process.env, home });
+        if (traeCnAuth) {
           if (progress?.enabled) {
             progress.start(`Fetching TRAE Work CN usage...`);
           }
@@ -4630,6 +4631,12 @@ async function readQueueBatch(queuePath, startOffset, maxBuckets) {
       // rows whose input_tokens still include cached tokens (6-7x inflated) —
       // while the local dashboard showed corrected numbers.
       bucket = require("../lib/local-api").normalizeQueueRow(bucket);
+      // Backend origins are local provenance; the current cloud accounting
+      // schema has no backend dimension. Do not disclose gateway hosts there.
+      if (bucket.backend_usage) {
+        bucket = { ...bucket };
+        delete bucket.backend_usage;
+      }
       bucketMap.set(`${source}|${model}|${hourStart}`, bucket);
       linesRead += 1;
       if (linesRead >= maxBuckets) break;
@@ -6372,8 +6379,10 @@ async function repairCodexRescanInflation({
       }
     }
     rebuilt = {
+      version: tmpCursors.hourly.version,
       buckets: tmpCursors.hourly.buckets || {},
       groupQueued: tmpCursors.hourly.groupQueued || {},
+      modelAttributionPolicy: tmpCursors.hourly.modelAttributionPolicy,
       codexHashes: Array.isArray(tmpCursors.codexHashes) ? tmpCursors.codexHashes : [],
       codexCompactionResponseIds: Array.isArray(tmpCursors.codexCompactionResponseIds)
         ? tmpCursors.codexCompactionResponseIds
@@ -6510,6 +6519,9 @@ async function repairCodexRescanInflation({
   //    rebuilt per-file cursors (offset at EOF) so the later parse in THIS sync
   //    does not re-read codex (which would re-inflate project buckets).
   const hourly = (cursors.hourly ||= { buckets: {}, groupQueued: {} });
+  // Without the rebuilt schema version, the next normalization treats these
+  // per-model keys as v1 and overwrites them all with an unknown bucket (#927).
+  hourly.version = rebuilt.version;
   hourly.buckets ||= {};
   hourly.groupQueued ||= {};
   for (const k of Object.keys(hourly.buckets)) {
@@ -6524,6 +6536,12 @@ async function repairCodexRescanInflation({
   for (const [k, v] of Object.entries(rebuilt.groupQueued)) {
     if (k.startsWith("codex|")) hourly.groupQueued[k] = v;
   }
+  // The rebuilt queue already uses the parser's current attribution policy.
+  // Preserve it so the following parse does not re-emit every repaired row.
+  hourly.modelAttributionPolicy = {
+    ...hourly.modelAttributionPolicy,
+    codex: rebuilt.modelAttributionPolicy.codex,
+  };
   cursors.files ||= {};
   for (const fp of Object.keys(cursors.files)) {
     if (isCodexSessionCursorPath(fp)) delete cursors.files[fp];

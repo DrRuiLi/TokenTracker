@@ -749,8 +749,6 @@ usage.overview.antigravity_notice_title,ui,DashboardPage,UsageOverview,antigravi
 usage.overview.antigravity_notice_body,ui,DashboardPage,UsageOverview,antigravity_notice_body,"Exact token usage and prompt-cache hits are parsed from Antigravity session metadata when available. Fallback transcripts without metadata are estimated from text length (~4 chars/token).",,active
 usage.overview.devin_notice_title,ui,DashboardPage,UsageOverview,devin_notice_title,"Cost not estimated",,active
 usage.overview.devin_notice_body,ui,DashboardPage,UsageOverview,devin_notice_body,"Devin reports real local token counts, but swe-2, swe-2-high and compactor have no pricing data in this build, so they are excluded from dollar estimates. A $0 figure does not mean the usage was free.",,active
-usage.overview.trae_notice_title,ui,DashboardPage,UsageOverview,trae_notice_title,"TRAE cost is partial",,active
-usage.overview.trae_notice_body,ui,DashboardPage,UsageOverview,trae_notice_body,"In multi-step turns, TRAE splits cached input for the final step, not the earlier ones. Input without a cache split counts toward token totals but not toward cost. Costs use model prices, not billed amounts.",,active
 usage.overview.week_cross_month_hint,ui,DashboardPage,UsageOverview,week_cross_month_hint,"This week spans two calendar months, so its total is not directly comparable with a single month's usage",,active
 limits.panel.title,ui,LimitsPage,UsageLimitsPanel,title,"Usage Limits",,active
 limits.panel.mode_separator,ui,LimitsPage,UsageLimitsPanel,title_separator," · ",,active
@@ -2174,6 +2172,7 @@ settings.local_data.local_history_only,dashboard,DashboardPage,LocalDataSection,
 leaderboard.profile_modal.window.lifetime,dashboard,LeaderboardProfileModal,StatCards,lifetime,"Totals: all time. Active days, daily average and breakdowns: {{from}} to {{to}}.",,active
 leaderboard.profile_modal.window.period,dashboard,LeaderboardProfileModal,StatCards,period,Stats: {{from}} to {{to}}.,,active
 leaderboard.profile_modal.window.average,dashboard,LeaderboardProfileModal,StatCards,average,"Window cost divided by {{days}} calendar days, including days without usage.",,active
+limits.claude.custom_backend,ui,LimitsPage,UsageLimitsPanel,status,Custom backend — Anthropic limits not applicable,,active
 nav.trcc,shared,*,Sidebar,trcc,Side Screen,,active
 trcc.page.subtitle,ui,TrccPage,TrccPage,page_subtitle,Settings for the Thermalright side-screen dashboard pushed by trcc-token-dash on this PC.,,active
 trcc.conn.online,ui,TrccPage,TrccPage,conn_online,Connected,,active

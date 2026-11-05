@@ -1,13 +1,13 @@
 # AI_CONTEXT — TokenTracker-TRCC（TokenTracker + 利民副屏）
 
 > 架构地图。AI 助手在新会话开始时先读本文件。**本文件只读，修改需用户明确同意。**
-> 最后更新：2026-11-05（账单导出改由 TokenTracker 完成，副屏只读合并文件）
+> 最后更新：2026-11-05（基线改为上游 v1.5.7；账单导出仍由 TokenTracker 完成，副屏只读合并文件）
 
 ## 1. 目标
 
 Windows 上的一份程序同时做两件事：
 
-- **TokenTracker**（本树 `package.json` 为 v1.5.4，MIT）：托盘程序 + 本地仪表盘。主用量读 `merged-usage.jsonl`（队列 + X 订阅账单）。按来源的细项、成就、项目用量仍读原始 `queue.jsonl`。
+- **TokenTracker**（本树 `package.json` 为 v1.5.7，MIT）：托盘程序 + 本地仪表盘。主用量读 `merged-usage.jsonl`（队列 + X 订阅账单）。按来源的细项、成就、项目用量仍读原始 `queue.jsonl`。
 - **副屏**（`trcc/`，协议源自 thermalright-trcc-linux，GPL-3.0）：把 token 和本机状态画成 960×320，经 USB Bulk 推到利民 **HydroNous R1**（`87AD:70DB`，握手 PM=17 SUB=5，0° 即正向）。
 
 副屏是 TokenTracker 的子进程，随它启动和退出，没有单独的托盘图标。设置页在仪表盘「工具」里的 `/trcc`，不另开 Tk 窗口。副屏自己不联网，只读 TokenTracker 写好的合并文件。
@@ -140,7 +140,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 2. 建 `trcc\.venv`，跑 `test_unit.py`，再用 `trcc-bundle.spec` 打出 `trcc-token-dash.exe`（带 libusb 和 `lhm\`）。
 3. `bundle-node.ps1`，然后 `dotnet publish` 自包含 win-x64。
 4. 把 EmbeddedServer 和 `trcc\` 放进 `TokenTrackerWin\publish`。
-5. Inno Setup 打出 `TokenTracker-Setup-v<package.json version>.exe`。当前版本是 v1.5.4。AppId `{8F2A6C71-4E9D-4B7A-9C3E-1D5F0A2B6E84}`，安装到 `%LOCALAPPDATA%\Programs\TokenTracker`，可覆盖同目录的旧安装。用户数据不在安装目录里。
+5. Inno Setup 打出 `TokenTracker-Setup-v<package.json version>.exe`。当前版本是 v1.5.7。AppId `{8F2A6C71-4E9D-4B7A-9C3E-1D5F0A2B6E84}`，安装到 `%LOCALAPPDATA%\Programs\TokenTracker`，可覆盖同目录的旧安装。用户数据不在安装目录里。
 
 脚本只编译，不安装。静默覆盖安装要先退出正在运行的 TokenTracker，否则 Inno 会因为文件占用而中止（退出码 5）。
 

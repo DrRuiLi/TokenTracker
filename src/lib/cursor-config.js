@@ -4,6 +4,7 @@ const fs = require("node:fs");
 
 const { readJson } = require("./fs");
 const { readSqliteFirstValue } = require("./sqlite-reader");
+const { decodeCursorAccessToken } = require("./cursor-safe-storage");
 
 // ── Path resolution ──
 
@@ -54,7 +55,11 @@ function cursorDebugLog(message, env = process.env) {
 }
 
 function readCursorAccessTokenFromStateDb(stateDbPath, deps = {}) {
-  return readSqliteFirstValue(stateDbPath, CURSOR_ACCESS_TOKEN_SQL, "value", {
+  return readCursorStateValue(stateDbPath, CURSOR_ACCESS_TOKEN_SQL, deps);
+}
+
+function readCursorStateValue(stateDbPath, sql, deps = {}) {
+  return readSqliteFirstValue(stateDbPath, sql, "value", {
     execFileSync: deps.execFileSync,
     requireFn: deps.requireFn,
     env: deps.env,
@@ -65,13 +70,28 @@ function readCursorAccessTokenFromStateDb(stateDbPath, deps = {}) {
   });
 }
 
+// Identity lookup does not access the OS secret store or decrypt the token.
+function readCursorUserIdFromStateDb(stateDbPath, deps = {}) {
+  const profile = readCursorStateValue(stateDbPath,
+    "SELECT value FROM ItemTable WHERE key = 'cursorAuth/cachedScopedProfile';", deps);
+  try {
+    const userId = normalizeCursorSubject(JSON.parse(profile)?.authId);
+    if (userId) return userId;
+  } catch {
+    // A missing or malformed cache must not prevent the membership fallback.
+  }
+  const membership = readCursorStateValue(stateDbPath,
+    "SELECT value FROM ItemTable WHERE key = 'cursorAuth/stripeMembershipAuthId';", deps);
+  return normalizeCursorSubject(membership);
+}
+
 /**
  * Extract Cursor session cookie from local SQLite + cli-config.json.
  * Returns { cookie, userId } or null on failure.
  *
  * Cookie format: WorkosCursorSessionToken=<userId>%3A%3A<jwt>
- * - JWT from state.vscdb → ItemTable → cursorAuth/accessToken
- * - userId from cli-config.json → authInfo.authId
+ * - JWT (plaintext or safeStorage) from state.vscdb → cursorAuth/accessToken
+ * - userId from cli-config.json → authInfo.authId, state.vscdb, or JWT subject
  *   - native Cursor email/password: "auth0|user_XXXXX"        → "user_XXXXX"
  *   - Google sign-in via WorkOS:    "google-oauth2|<numeric>" → kept verbatim
  *   - other WorkOS subjects:        "github|…", "oidc|…"      → kept verbatim
@@ -89,18 +109,21 @@ function extractCursorSessionToken({ home, platform, env, deps } = {}) {
  * extractCursorSessionToken so the token is not propagated unnecessarily.
  */
 function extractCursorAuth({ home, platform, env, deps } = {}) {
-  const { stateDbPath, cliConfigPath } = resolveCursorPaths({ home, platform, env });
+  const { appDir, stateDbPath, cliConfigPath } = resolveCursorPaths({ home, platform, env });
 
   // 1. Extract JWT from SQLite
   if (!fs.existsSync(stateDbPath)) {
     cursorDebugLog(`Cursor state DB not found at ${stateDbPath}`, deps?.env);
     return null;
   }
-  const jwt = readCursorAccessTokenFromStateDb(stateDbPath, deps);
-  if (!jwt || jwt.length < 10) return null;
+  const jwt = decodeCursorAccessToken(readCursorAccessTokenFromStateDb(stateDbPath, deps), {
+    platform, appDir, deps,
+  });
+  if (!jwt) return null;
 
-  // 2. Extract userId — try cli-config.json first, fall back to JWT decode
-  let userId = extractUserIdFromCliConfig(cliConfigPath);
+  // 2. New Cursor versions keep identity in SQLite instead of cli-config.json.
+  let userId = extractUserIdFromCliConfig(cliConfigPath)
+    || readCursorUserIdFromStateDb(stateDbPath, deps);
   if (!userId) {
     userId = extractUserIdFromJwt(jwt);
   }
@@ -116,7 +139,8 @@ function extractCursorAuth({ home, platform, env, deps } = {}) {
 const WORKOS_OAUTH_SUBJECT_RE = /^(google-oauth2|github|oidc|auth0)\|[^|]+$/;
 
 function normalizeCursorSubject(subject) {
-  if (!subject) return null;
+  if (typeof subject !== "string" || !subject || /[\s;\x00-\x1f\x7f]/.test(subject)) return null;
+  if (/^user_[A-Za-z0-9_]+$/.test(subject)) return subject;
   // Native Cursor: "auth0|user_XXXXX" → strip provider prefix, return "user_XXXXX"
   const native = subject.match(/\|(user_[A-Za-z0-9_]+)$/);
   if (native) return native[1];
@@ -500,7 +524,21 @@ function parseCursorCsv(csvText) {
       cost: toFloat(fields[costIdx]),
     };
 
-    if (record.totalTokens <= 0 && record.inputTokens <= 0 && record.outputTokens <= 0) continue;
+    // Token presence is judged on the component columns (not the Total
+    // column) so a cache-read-only row survives even when Cursor's Total
+    // disagrees — the isAllZeroUsage gate downstream counts these same
+    // component fields. Request-only rows (e.g. bot/automation calls that
+    // consumed no tokens, issue #998) are real usage events: they are kept
+    // when the row carries a model identity, so parseCursorApiIncremental
+    // can import them as 0-token/1-request records pairing with the #997
+    // cloud-side request retention. Rows with no tokens and no model are
+    // degenerate placeholders and stay dropped.
+    const hasTokens =
+      record.inputTokens > 0 ||
+      record.cacheWriteTokens > 0 ||
+      record.cacheReadTokens > 0 ||
+      record.outputTokens > 0;
+    if (!hasTokens && !String(record.model || "").trim()) continue;
 
     records.push(record);
   }
@@ -593,6 +631,7 @@ module.exports = {
   resolveCursorPaths,
   isCursorInstalled,
   readCursorAccessTokenFromStateDb,
+  readCursorUserIdFromStateDb,
   extractCursorAuth,
   extractCursorSessionToken,
   fetchCursorUsageCsv,

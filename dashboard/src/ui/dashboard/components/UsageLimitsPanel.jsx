@@ -418,7 +418,7 @@ function ToolGroup({ name, providerId, children, expandable = false, expanded = 
       {providerKey ? (
         <ProviderIcon provider={providerKey} size={22} className={LIMITS_PROVIDER_ICON_CLASS} />
       ) : null}
-      <span className="text-base font-semibold text-oai-black dark:text-oai-white">{name}</span>
+      <span className="text-sm font-medium text-oai-black dark:text-oai-white">{name}</span>
       {rightAdornment ? <span className="shrink-0">{rightAdornment}</span> : null}
       {badge}
     </div>
@@ -432,7 +432,7 @@ function ToolGroup({ name, providerId, children, expandable = false, expanded = 
     </div>
   );
   const cardClass = "rounded-xl border border-oai-gray-200 bg-white dark:border-oai-gray-800 dark:bg-oai-gray-900";
-  const headerClass = "flex w-full items-center justify-between gap-3 border-b border-oai-gray-200 px-4 py-4 text-left dark:border-oai-gray-800 sm:px-5";
+  const headerClass = "flex w-full items-center justify-between gap-3 border-b border-oai-gray-200 px-4 py-3 text-left dark:border-oai-gray-800 sm:px-5";
   const body = <div className="flex flex-col gap-2 px-4 py-4 sm:px-5">{children}</div>;
 
   if (!expandable) {
@@ -518,6 +518,7 @@ function SubscriptionBar({ subscription, now, mode = LIMIT_DISPLAY_MODES.USED })
   return (
     <div className="flex items-center gap-2">
       <span
+        data-limit-label=""
         className="text-xs sm:text-sm text-oai-gray-500 dark:text-oai-gray-400 shrink-0 whitespace-nowrap"
         style={{ width: "var(--tt-limits-label-w)" }}
       >
@@ -1085,6 +1086,11 @@ function renderUnlinkedProvider(id, statusNodes, expanded, onToggle, subscriptio
 
 function renderProviderGroup(id, data, mode, expanded, onToggle, subscription = null, now = Date.now(), onKeySaved = null) {
   if (!PROVIDER_LIMIT_SPECS[id]) return null;
+  if (id === "claude" && data?.limits_status === "not_applicable") {
+    return renderUnlinkedProvider(id,
+      <StatusLine>{copy("limits.claude.custom_backend")}</StatusLine>,
+      expanded, onToggle, subscription, now, mode);
+  }
   if (!data?.configured) {
     return renderUnlinkedProvider(
       id,

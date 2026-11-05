@@ -1,8 +1,3 @@
-> **이 포크([DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker))는 [업스트림 Token Tracker](https://github.com/xiufengsun/TokenTracker)에 다음을 추가했습니다:**
->
-> - **TRCC 보조 디스플레이 제어 패널** — Windows 트레이 앱이 `tracker serve`와 함께 Thermalright **HydroNous R1** 보조 디스플레이(960×320 USB)를 구동합니다. 로컬 대시보드 **도구 → `/trcc`** 에서 미리보기, 레이아웃/테마, 푸시를 제어합니다. USB Bulk 프레임 프로토콜은 [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)에서 개작했습니다(GPL-3.0, `trcc/NOTICE` 참고).
-> - **X 구독 사용량** — 대시보드에서 X 계정으로 로그인하면 TokenTracker가 **grok.com** 청구 CSV를 가져와 로컬 hook 사용량과 병합합니다. 보조 디스플레이와 메인 대시보드가 병합된 통계를 공유합니다(자세한 내용은 `trcc/README.md`, `AI_CONTEXT.md`).
-
  <div align="center">
 
 # Token Tracker

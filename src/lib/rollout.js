@@ -1,3 +1,4 @@
+const { preserveLegacyClaudeGroups, preserveLegacyClaudePrefix, createBackendResolver, mergeBackendUsage, claudeLines } = require("./claude-backend");
 const { claudeUserIdentity, collectClaudeForkAliases } = require("./claude-user-identity");
 const fs = require("node:fs/promises");
 const fssync = require("node:fs");
@@ -352,6 +353,7 @@ async function parseRolloutIncremental({
   const projectFreshnessNowMs = Date.now();
   const touchedBuckets = new Set();
   const defaultSource = normalizeSourceInput(source) || DEFAULT_SOURCE;
+  preserveCodexModelBuckets(hourlyState, touchedBuckets);
   const syncDiagnostics = diagnostics && typeof diagnostics === "object" ? diagnostics : null;
 
   if (!cursors.files || typeof cursors.files !== "object") {
@@ -1084,6 +1086,9 @@ async function parseClaudeIncremental({
   const prevHashes = Array.isArray(cursors.claudeHashes) ? cursors.claudeHashes : [];
   const seenMessageHashes = new Set(prevHashes);
   const defaultSource = normalizeSourceInput(source) || "claude";
+  preserveLegacyClaudeGroups(files.filter((entry) =>
+    (typeof entry === "string" ? defaultSource : normalizeSourceInput(entry?.source) || defaultSource) === "claude"
+  ).map((entry) => typeof entry === "string" ? entry : entry?.path), path.dirname(queuePath));
   // Resolve all changed-file lineage before counting: fork files may sort first.
   const forkTimes = new Map();
   const forkAliases = await collectClaudeForkAliases(files, cursors,
@@ -1153,6 +1158,7 @@ async function parseClaudeIncremental({
     const truncated = sameInode && prevOffset > st.size;
     const startOffset = sameInode && !truncated ? prevOffset : 0;
 
+    if (fileSource === "claude") preserveLegacyClaudePrefix(filePath, path.dirname(queuePath), startOffset);
     let fileId = null;
     if (seenFileIds) {
       const cachedFileId =
@@ -1287,6 +1293,7 @@ async function parseClaudeIncremental({
       projectKey,
       seenMessageHashes,
       forkAliases,
+      backendResolver: fileSource === "claude" ? createBackendResolver(filePath, path.dirname(queuePath)) : null,
     });
 
     cursors.files[key] = {
@@ -3134,6 +3141,7 @@ async function parseClaudeFile({
   projectKey,
   seenMessageHashes,
   forkAliases,
+  backendResolver,
 }) {
   const st = fileStat || (await fs.stat(filePath).catch(() => null));
   if (!st || !st.isFile()) return { endOffset: startOffset, eventsAggregated: 0 };
@@ -3141,15 +3149,14 @@ async function parseClaudeFile({
   const endOffset = st.size;
   if (startOffset >= endOffset) return { endOffset, eventsAggregated: 0 };
 
-  const stream = fssync.createReadStream(filePath, { encoding: "utf8", start: startOffset });
-  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
-
   let eventsAggregated = 0;
   // Separator-agnostic: WSL installs are scanned over \\wsl$ UNC paths where
   // path.join produces backslashes, and a forward-slash-only check would
   // misclassify subagent transcripts as main sessions (#307).
   const isMainSession = !/[\\/]subagents[\\/]/.test(filePath);
-  for await (const line of rl) {
+  let byteOffset = startOffset;
+  for await (const { line, start: lineStart, end } of claudeLines(filePath, startOffset, endOffset)) {
+    byteOffset = end;
     if (!line) continue;
 
     // Count user-typed messages as conversations (main sessions only).
@@ -3211,6 +3218,8 @@ async function parseClaudeFile({
 
     if (dedupHash) seenMessageHashes.add(dedupHash);
     delta.conversation_count = 0;
+    const backend = backendResolver?.(obj, lineStart, byteOffset);
+    if (backend) delta.backend_usage = [{ ...delta, ...backend }];
 
     const bucketStart = toUtcHalfHourStart(tokenTimestamp);
     if (!bucketStart) continue;
@@ -3232,9 +3241,7 @@ async function parseClaudeFile({
     eventsAggregated += 1;
   }
 
-  rl.close();
-  stream.close?.();
-  return { endOffset, eventsAggregated };
+  return { endOffset: byteOffset, eventsAggregated };
 }
 
 async function parseGeminiFile({
@@ -3514,6 +3521,40 @@ async function parseOpencodeMessageFile({
   };
 }
 
+// Codex models are observed per rollout/turn. A busier sibling agent in the
+// same half-hour is not evidence for the model of an unnamed request (#927).
+// Re-emit stored buckets once on upgrade, including idle historical groups:
+// their totals still retain the original attribution, so no log replay is
+// needed. Queue readers replace rows by (source, model, hour_start).
+function preserveCodexModelBuckets(hourlyState, touchedBuckets) {
+  const upgrading = hourlyState.modelAttributionPolicy?.codex !== "observed";
+  if (!upgrading && !Object.keys(hourlyState.groupQueued).some(
+    key => key.startsWith(`${DEFAULT_SOURCE}${BUCKET_SEPARATOR}`),
+  )) return;
+  const legacyGroups = new Set();
+  for (const [key, bucket] of Object.entries(hourlyState.buckets || {})) {
+    const parsed = parseBucketKey(key);
+    if (parsed.source !== DEFAULT_SOURCE || !bucket?.totals) continue;
+    const groupKey = groupBucketKey(parsed.source, parsed.hourStart);
+    const legacy = Object.prototype.hasOwnProperty.call(hourlyState.groupQueued, groupKey);
+    if (legacy) legacyGroups.add(groupKey);
+    if (!upgrading && !legacy) continue;
+    bucket.queuedKey = null;
+    bucket.retractedUnknownKey = null;
+    touchedBuckets.add(key);
+  }
+  for (const groupKey of legacyGroups) {
+    const hourStart = groupKey.slice(DEFAULT_SOURCE.length + BUCKET_SEPARATOR.length);
+    // Legacy groups emitted a combined unknown row for multiple named models.
+    // Replace it with the actual unknown total (or zero) before splitting.
+    const unknown = getHourlyBucket(hourlyState, DEFAULT_SOURCE, DEFAULT_MODEL, hourStart);
+    unknown.queuedKey = null;
+    touchedBuckets.add(bucketKey(DEFAULT_SOURCE, DEFAULT_MODEL, hourStart));
+    delete hourlyState.groupQueued[groupKey];
+  }
+  hourlyState.modelAttributionPolicy = { ...hourlyState.modelAttributionPolicy, codex: "observed" };
+}
+
 async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets }) {
   if (!touchedBuckets || touchedBuckets.size === 0) return 0;
 
@@ -3607,10 +3648,10 @@ async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets })
 
   const toAppend = [];
   for (const group of groupedBuckets.values()) {
-    // A local reconstruction may opt into observed-only attribution. Preserve
-    // every model bucket, including unknown, instead of guessing from the
-    // busiest model in the same half-hour. The policy lives in cursor state
-    // so hooks, desktop refreshes, and restarted CLI processes agree.
+    // Codex defaults to observed-only attribution; reconstructions can opt
+    // other sources in. Preserve every model bucket, including unknown,
+    // instead of guessing from the busiest model in the same half-hour.
+    // Persist the policy so hooks, desktop refreshes and restarts agree.
     if (hourlyState.modelAttributionPolicy?.[group.source] === "observed") {
       // A group last aligned under the default policy must not keep the stale
       // dominant attribution downstream. Mirror the default path's alignment
@@ -3662,6 +3703,7 @@ async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets })
           total_cost_usd: totals.total_cost_usd || 0,
           usage_precision: usagePrecision || undefined,
           ...prioritySubsetOf(totals),
+          ...(totals.backend_usage ? { backend_usage: totals.backend_usage } : {}),
           conversation_count: totals.conversation_count,
         }));
         bucket.queuedKey = key;
@@ -3749,6 +3791,7 @@ async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets })
             total_cost_usd: totals.total_cost_usd || 0,
             usage_precision: usagePrecision || undefined,
             ...prioritySubsetOf(totals),
+            ...(totals.backend_usage ? { backend_usage: totals.backend_usage } : {}),
             conversation_count: totals.conversation_count,
           }),
         );
@@ -3830,6 +3873,7 @@ async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets })
         total_cost_usd: unknownBucket.totals.total_cost_usd || 0,
         usage_precision: usagePrecision || undefined,
         ...prioritySubsetOf(unknownBucket.totals),
+        ...(unknownBucket.totals.backend_usage ? { backend_usage: unknownBucket.totals.backend_usage } : {}),
         conversation_count: unknownBucket.totals.conversation_count,
       }),
     );
@@ -3879,6 +3923,7 @@ async function enqueueTouchedBuckets({ queuePath, hourlyState, touchedBuckets })
           billable_total_tokens: group.totals.billable_total_tokens ?? group.totals.total_tokens,
           total_cost_usd: group.totals.total_cost_usd || 0,
           ...prioritySubsetOf(group.totals),
+          ...(group.totals.backend_usage ? { backend_usage: group.totals.backend_usage } : {}),
           conversation_count: group.totals.conversation_count,
         }),
       );
@@ -3926,6 +3971,7 @@ async function enqueueTouchedProjectBuckets({
         project_ref: projectRef,
         project_key: projectKey,
         source: bucket.source,
+        ...(totals.backend_usage ? { backend_usage: totals.backend_usage } : {}),
         hour_start: bucket.hour_start,
         input_tokens: totals.input_tokens,
         cached_input_tokens: totals.cached_input_tokens,
@@ -4038,18 +4084,29 @@ function normalizeHourlyState(raw) {
   const version = Number(state.version || 1);
   const rawBuckets = state.buckets && typeof state.buckets === "object" ? state.buckets : {};
   const buckets = {};
-  const groupQueued = {};
+  const existingGroupQueued =
+    state.groupQueued && typeof state.groupQueued === "object" ? state.groupQueued : {};
   const modelAttributionPolicy = Object.fromEntries(
     Object.entries(state.modelAttributionPolicy || {})
       .filter(([, policy]) => policy === "observed"),
   );
 
   if (!Number.isFinite(version) || version < 2) {
+    const groupQueued = { ...existingGroupQueued };
     for (const [key, value] of Object.entries(rawBuckets)) {
       const parsed = parseBucketKey(key);
       const hourStart = parsed.hourStart;
       if (!hourStart) continue;
       const source = normalizeSourceInput(parsed.source) || DEFAULT_SOURCE;
+      // Older repairs persisted model-aware keys without a schema version.
+      // Preserve them before v1 normalization can collapse sibling models into
+      // unknown; preserveCodexModelBuckets needs the original attribution (#927).
+      const firstSeparator = key.indexOf(BUCKET_SEPARATOR);
+      const hasModel = firstSeparator > 0 && key.indexOf(BUCKET_SEPARATOR, firstSeparator + 1) > 0;
+      if (hasModel) {
+        buckets[bucketKey(source, parsed.model, hourStart)] = value;
+        continue;
+      }
       const normalizedKey = bucketKey(source, DEFAULT_MODEL, hourStart);
       buckets[normalizedKey] = value;
       if (value?.queuedKey) {
@@ -4072,9 +4129,6 @@ function normalizeHourlyState(raw) {
     const normalizedKey = bucketKey(parsed.source, parsed.model, hourStart);
     buckets[normalizedKey] = value;
   }
-
-  const existingGroupQueued =
-    state.groupQueued && typeof state.groupQueued === "object" ? state.groupQueued : {};
 
   return {
     version: 3,
@@ -4529,6 +4583,7 @@ function prioritySubsetOf(totals) {
 }
 
 function addTotals(target, delta) {
+  mergeBackendUsage(target, delta);
   for (const [field] of SPEED_TIER_SUBSET_FIELDS) {
     const value = Number(delta?.[field]) || 0;
     if (value > 0) target[field] = (Number(target[field]) || 0) + value;
@@ -5587,10 +5642,14 @@ function detectOpencodeMessageLayout(dbPath, sqliteOptions = {}, { propagateRead
 }
 
 // Shared provider resolver: v1 rows carry a top-level providerID, v2 rows nest
-// it under model.providerID. Used by the mimo/zcode discriminators so they work
-// against both generations without duplicating the resolution logic.
+// it under model.providerID. ZCode renamed the flat field to `providerId`
+// (lowercase d, ~2026-09, issue #1008); rows written since then only carry the
+// new spelling, so without it every post-rename native turn resolves to "" and
+// the zcode legacy-history leg silently drops it. Used by the mimo/zcode
+// discriminators so they work against all generations without duplicating the
+// resolution logic.
 function opencodeMessageProvider(data) {
-  return data?.providerID || data?.model?.providerID || "";
+  return data?.providerID || data?.model?.providerID || data?.providerId || "";
 }
 
 // readSqliteJsonRows wraps its two backend errors into the thrown Error, so a
@@ -7743,7 +7802,12 @@ async function parseCursorApiIncremental({
 
     const { normalizeCursorUsage } = require("./cursor-config");
     const delta = normalizeCursorUsage(record);
-    if (isAllZeroUsage(delta)) continue;
+    // isAllZeroUsage reads only the token fields, so a request-only row (0
+    // tokens across every column — e.g. bot/automation requests, issue #998)
+    // must not be dropped here: it is kept as a 1-request record pairing
+    // with the #997 cloud-side request retention. Rows that are all-zero
+    // AND carry no model identity are degenerate and stay skipped.
+    if (isAllZeroUsage(delta) && !String(record.model || "").trim()) continue;
 
     delta.conversation_count = 1;
 
