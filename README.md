@@ -225,6 +225,15 @@ An Arch `PKGBUILD` for a local pacman install lives in `TokenTrackerLinux/packag
 <tr>
 <td colspan="2">
 
+**Secondary display (Windows)** — Dashboard **Tools → Secondary display**: preview your Thermalright HydroNous R1 panel, push controls, layouts and themes; the hardware screen can show token usage, Grok Bot weekly limits, and system metrics.
+
+<img src="docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker secondary display settings" width="820" />
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
+
 **Achievements** — 15 tracks turn usage milestones, streaks, tools, and models into collectible badges — with progress visible before each unlock.
 
 <img src="https://raw.githubusercontent.com/xiufengsun/tokentracker/main/docs/screenshots/achievements.png" alt="TokenTracker Achievements" />

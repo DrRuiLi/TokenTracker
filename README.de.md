@@ -160,6 +160,15 @@ Aktualisieren mit `brew upgrade --cask xiufengsun/tokentracker/tokentracker`. De
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**Sekundäranzeige (Windows)** — Im Dashboard unter **Tools → Sekundäranzeige**: Vorschau für die Thermalright HydroNous R1, Push-Steuerung, Layouts und Themes; auf dem Hardware-Display u. a. Token-Nutzung und Grok-Bot-Wochenlimit.
+
+<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker Sekundäranzeige" width="820" />
+
+</td>
+</tr>
 </table>
 
 ---

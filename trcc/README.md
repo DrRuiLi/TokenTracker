@@ -4,6 +4,12 @@
 
 许可证：**GPL-3.0**。副屏 Bulk 推帧协议改编自 [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)，见 `NOTICE`。
 
+## TokenTracker 仪表盘（推荐）
+
+Windows 安装版在仪表盘 **工具 → 副屏** 配置推送与主题，副屏子进程随 `tracker serve` 自动启停，无需单独开 trcc 窗口：
+
+![TokenTracker 副屏设置页](../docs/screenshots/trcc-dashboard-tools.png)
+
 ## 使用前
 
 1. **先完全退出官方 TRCC**（托盘图标右键退出；必要时在任务管理器结束 `TRCC.exe`、`USBLCDNEW.exe`）。官方版和本程序不能同时占用副屏。

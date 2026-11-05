@@ -159,6 +159,15 @@ brew install xiufengsun/tokentracker/tokentracker
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**副屏（Windows）** —— 仪表盘「工具 → 副屏」：预览利民 HydroNous R1 画面、推送与布局/主题，副屏上可显示 token 用量与 Grok Bot 周限额等。
+
+<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker 副屏设置页" width="820" />
+
+</td>
+</tr>
 </table>
 
 ---

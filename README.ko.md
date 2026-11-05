@@ -157,6 +157,15 @@ brew install xiufengsun/tokentracker/tokentracker
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**보조 디스플레이(Windows)** — 대시보드 **도구 → 보조 디스플레이**: Thermalright HydroNous R1 미리보기, 푸시·레이아웃/테마. 하드웨어 화면에 토큰 사용량, Grok Bot 주간 한도 등 표시.
+
+<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker 보조 디스플레이 설정" width="820" />
+
+</td>
+</tr>
 </table>
 
 ---

@@ -157,6 +157,15 @@ brew install xiufengsun/tokentracker/tokentracker
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**サブディスプレイ（Windows）** — ダッシュボード「ツール → サブディスプレイ」：Thermalright HydroNous R1 のプレビュー、プッシュとレイアウト/テーマ。実機にトークン使用量や Grok Bot の週次上限などを表示。
+
+<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker サブディスプレイ設定" width="820" />
+
+</td>
+</tr>
 </table>
 
 ---
