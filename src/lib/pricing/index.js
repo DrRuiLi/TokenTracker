@@ -342,6 +342,9 @@ function speedTierSubsetCost(row, prefix, pricing, ctx) {
 // computeRowCost in src/lib/local-api.js. Moved here so vite mock + local
 // server share one source of truth.
 function computeRowCost(row) {
+  // X-subscription billing rows carry a token split for the dashboard. The
+  // export is included usage, not an API invoice, so it stays at $0.
+  if (row?.billing_included) return 0;
   if (hasUnknownBackendCost(row)) {
     // Existing totals without provenance retain their historical estimate. Only
     // the newly ingested custom/unknown subset is excluded from model pricing.
@@ -449,6 +452,7 @@ function speedTierCost(row, prefix, multiplierKey) {
   // this tier — the allocation below is 0 for them anyway, and the
   // model-breakdown endpoint calls this for every row of every source.
   if (!SPEED_TIER_COLUMN_SUFFIXES.some((suffix) => Number(row?.[`${prefix}${suffix}`]) > 0)) return 0;
+  if (row?.billing_included) return 0;
   if (LOCAL_INFERENCE_SOURCES.has(String(row?.source || "").toLowerCase())) return 0;
   if (PI_SUBSCRIPTION_SOURCES.has(String(row?.source || "").toLowerCase())) return 0;
   const reportedCost = Number(row?.total_cost_usd);

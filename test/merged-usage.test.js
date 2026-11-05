@@ -122,9 +122,41 @@ test("billing events become synthesized $0-cost rows bucketed by hour", () => {
   assert.equal(cursor[0].input_tokens, 0);
   assert.equal(cursor[0].output_tokens, 0);
   assert.equal(cursor[0].total_cost_usd, 0);
+  assert.equal(cursor[0].billing_included, true);
 
   const grok = rows.find((r) => r.source === "grok-bot");
   assert.equal(grok.total_tokens, 500);
+});
+
+test("billing usage split is summed onto the synthesized hour row", () => {
+  const rows = buildMergedRows(
+    [],
+    [
+      billing({
+        product: "cursor",
+        ms: Date.parse("2026-11-01T05:10:00Z"),
+        tokens: 16,
+        input_tokens: 7,
+        output_tokens: 1,
+        cached_input_tokens: 4,
+        cache_creation_input_tokens: 2,
+      }),
+      billing({
+        product: "cursor",
+        ms: Date.parse("2026-11-01T05:50:00Z"),
+        tokens: 10,
+        input_tokens: 3,
+        output_tokens: 7,
+      }),
+    ],
+  );
+  const cursor = rows.find((r) => r.source === "cursor");
+  assert.equal(cursor.total_tokens, 26);
+  assert.equal(cursor.input_tokens, 10);
+  assert.equal(cursor.output_tokens, 8);
+  assert.equal(cursor.cached_input_tokens, 4);
+  assert.equal(cursor.cache_creation_input_tokens, 2);
+  assert.equal(cursor.total_cost_usd, 0);
 });
 
 test("cursor is not double counted when billing and queue both cover a date", () => {
@@ -147,13 +179,25 @@ test("ensureMergedUsage writes a queue-shaped file and rebuilds only on change",
   const mergedPath = path.join(dir, "merged-usage.jsonl");
 
   fs.writeFileSync(queuePath, JSON.stringify(queueRow({ source: "opencode" })) + "\n");
-  fs.writeFileSync(billingPath, JSON.stringify({ id: "b1", t: "2026-11-01T05:20:15.238Z", model: "grok-bot", tokens: 42, product: "grok-bot" }) + "\n");
+  fs.writeFileSync(billingPath, JSON.stringify({
+    id: "b1",
+    t: "2026-11-01T05:20:15.238Z",
+    model: "grok-bot",
+    tokens: 42,
+    input_tokens: 30,
+    output_tokens: 12,
+    cached_input_tokens: 0,
+    cache_creation_input_tokens: 0,
+    product: "grok-bot",
+  }) + "\n");
 
   assert.equal(await ensureMergedUsage({ queuePath, billingPath, mergedPath }), mergedPath);
   const first = fs.readFileSync(mergedPath, "utf8");
   const parsed = first.trim().split("\n").map((l) => JSON.parse(l));
   assert.equal(parsed.length, 2);
   assert.equal(parsed.find((r) => r.source === "grok-bot").total_tokens, 42);
+  assert.equal(parsed.find((r) => r.source === "grok-bot").input_tokens, 30);
+  assert.equal(parsed.find((r) => r.source === "grok-bot").output_tokens, 12);
   assert.equal(parsed.find((r) => r.source === "opencode").source, "opencode");
 
   // unchanged inputs -> no rebuild (meta gate), same bytes

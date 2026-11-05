@@ -11,6 +11,7 @@ const {
   mergeStore,
   resolveGrokBillingPath,
   usageTokens,
+  parseUsage,
 } = require("../src/lib/grok-billing-export");
 
 test("isHeadlessCommand tells a billing download apart from the login window", () => {
@@ -36,12 +37,21 @@ test("usageTokens sums Grok billing usage JSON", () => {
     "cache-write-text-tokens": 2,
   });
   assert.equal(usageTokens(raw), 20);
+  assert.deepEqual(parseUsage(raw), {
+    input_tokens: 10,
+    output_tokens: 5,
+    cached_input_tokens: 3,
+    cache_creation_input_tokens: 2,
+    tokens: 20,
+  });
 });
 
 test("eventsFromCsvText strips PII and parses rows", () => {
   const usage = JSON.stringify({
     "prompt-text-tokens": 7,
     "completion-text-tokens": 1,
+    "cached-prompt-text-tokens": 4,
+    "cache-write-text-tokens": 2,
   });
   const header =
     "Billing Item ID,Event Time,Product,Charge Category,Usage Type," +
@@ -53,8 +63,14 @@ test("eventsFromCsvText strips PII and parses rows", () => {
   ].join("\n");
   const events = eventsFromCsvText(csv);
   assert.equal(events.length, 1);
-  assert.equal(events[0].tokens, 8);
+  assert.equal(events[0].tokens, 14);
+  assert.equal(events[0].input_tokens, 7);
+  assert.equal(events[0].output_tokens, 1);
+  assert.equal(events[0].cached_input_tokens, 4);
+  assert.equal(events[0].cache_creation_input_tokens, 2);
   assert.equal(events[0].product, "cursor");
+  assert.equal(JSON.stringify(events[0]).includes("hidden@example.com"), false);
+  assert.equal(JSON.stringify(events[0]).includes("secret"), false);
 });
 
 test("mergeStore dedupes by billing id", async (t) => {

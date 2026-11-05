@@ -7,11 +7,13 @@ const os = require("node:os");
 const path = require("node:path");
 
 const TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
-const TOKEN_KEYS = [
-  "prompt-text-tokens",
-  "completion-text-tokens",
-  "cached-prompt-text-tokens",
-  "cache-write-text-tokens",
+// CSV Usage JSON keys, in queue-column order. The four counts are additive:
+// prompt is non-cached input, and the cache keys are not already inside it.
+const USAGE_FIELDS = [
+  ["prompt-text-tokens", "input_tokens"],
+  ["completion-text-tokens", "output_tokens"],
+  ["cached-prompt-text-tokens", "cached_input_tokens"],
+  ["cache-write-text-tokens", "cache_creation_input_tokens"],
 ];
 const EDGE =
   process.platform === "win32"
@@ -78,23 +80,44 @@ function exportUrl(startMs, endMs) {
   return `https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?${q}`;
 }
 
-function usageTokens(raw) {
-  if (!raw) return 0;
+function emptyUsage() {
+  return {
+    input_tokens: 0,
+    output_tokens: 0,
+    cached_input_tokens: 0,
+    cache_creation_input_tokens: 0,
+    tokens: 0,
+  };
+}
+
+// Split the CSV Usage JSON into queue columns. `tokens` stays the sum so older
+// readers that only know the total keep working.
+function parseUsage(raw) {
+  const out = emptyUsage();
+  if (!raw) return out;
   let data = raw;
   if (typeof raw === "string") {
     try {
       data = JSON.parse(raw);
     } catch {
-      return 0;
+      return out;
     }
   }
-  if (!data || typeof data !== "object") return 0;
-  let total = 0;
-  for (const key of TOKEN_KEYS) {
-    const n = Number(data[key]);
-    if (Number.isFinite(n)) total += Math.floor(n);
+  if (!data || typeof data !== "object") return out;
+  for (const [src, dest] of USAGE_FIELDS) {
+    const n = Number(data[src]);
+    if (Number.isFinite(n)) out[dest] = Math.floor(n);
   }
-  return total;
+  out.tokens =
+    out.input_tokens +
+    out.output_tokens +
+    out.cached_input_tokens +
+    out.cache_creation_input_tokens;
+  return out;
+}
+
+function usageTokens(raw) {
+  return parseUsage(raw).tokens;
 }
 
 function parseCsvLine(line) {
@@ -144,11 +167,16 @@ function eventsFromCsvText(text) {
     if (!itemId || !rawTime) continue;
     const model =
       get("Model").trim() || get("Product").trim() || "unknown";
+    const usage = parseUsage(get("Usage"));
     out.push({
       id: itemId,
       t: rawTime,
       model,
-      tokens: usageTokens(get("Usage")),
+      tokens: usage.tokens,
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+      cached_input_tokens: usage.cached_input_tokens,
+      cache_creation_input_tokens: usage.cache_creation_input_tokens,
       product: get("Product").trim(),
     });
   }
@@ -548,4 +576,5 @@ module.exports = {
   localWindow,
   exportUrl,
   usageTokens,
+  parseUsage,
 };

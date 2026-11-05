@@ -80,7 +80,14 @@ async function readQueueRowsForMerge(queuePath) {
   return Array.from(latest.values());
 }
 
-// Parse the billing store into [{ ms, model, tokens, product }]. Only rows with
+function nonNegativeInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n);
+}
+
+// Parse the billing store into events. Older rows only have `tokens`; rows
+// written after the Usage split also carry the queue columns. Only rows with
 // a usable timestamp and a positive token total participate in the merge.
 // Async like readQueueRowsForMerge — the store only ever grows.
 async function readBillingEvents(billingPath) {
@@ -101,6 +108,10 @@ async function readBillingEvents(billingPath) {
       ms,
       model: String(row.model || "unknown"),
       tokens: Math.round(tokens),
+      input_tokens: nonNegativeInt(row.input_tokens),
+      output_tokens: nonNegativeInt(row.output_tokens),
+      cached_input_tokens: nonNegativeInt(row.cached_input_tokens),
+      cache_creation_input_tokens: nonNegativeInt(row.cache_creation_input_tokens),
       product: String(row.product || ""),
     });
   }
@@ -117,8 +128,10 @@ async function readBillingEvents(billingPath) {
 //   - queue *cursor* and *grok-bot* rows are dropped on any UTC+8 date the
 //     billing export covers for the matching product (billing is authoritative
 //     there), and kept elsewhere;
-//   - every billing event becomes a synthesized row (cursor or grok-bot) with
-//     total = billable = tokens and no input/output split, so its cost is $0.
+//   - every billing event becomes a synthesized row (cursor or grok-bot).
+//     total = billable = tokens. When the store has a Usage split, the same
+//     columns are summed onto the row; older total-only rows stay at 0.
+//     billing_included keeps the subscription row at $0 (not API list price).
 //
 // Coverage is computed per product: billing for one product never suppresses
 // queue rows for another product on the same date.
@@ -155,25 +168,39 @@ function buildMergedRows(queueRows, billingEvents) {
     const key = `${event.product}|${event.model}|${hourStart}`;
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { source: event.product || "unknown", model: event.model, hour_start: hourStart, tokens: 0 };
+      bucket = {
+        source: event.product || "unknown",
+        model: event.model,
+        hour_start: hourStart,
+        tokens: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        cached_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      };
       buckets.set(key, bucket);
     }
     bucket.tokens += event.tokens;
+    bucket.input_tokens += event.input_tokens || 0;
+    bucket.output_tokens += event.output_tokens || 0;
+    bucket.cached_input_tokens += event.cached_input_tokens || 0;
+    bucket.cache_creation_input_tokens += event.cache_creation_input_tokens || 0;
   }
   for (const bucket of buckets.values()) {
     rows.push({
       source: bucket.source,
       model: bucket.model,
       hour_start: bucket.hour_start,
-      input_tokens: 0,
-      cached_input_tokens: 0,
-      cache_creation_input_tokens: 0,
-      output_tokens: 0,
+      input_tokens: bucket.input_tokens,
+      cached_input_tokens: bucket.cached_input_tokens,
+      cache_creation_input_tokens: bucket.cache_creation_input_tokens,
+      output_tokens: bucket.output_tokens,
       reasoning_output_tokens: 0,
       total_tokens: bucket.tokens,
       billable_total_tokens: bucket.tokens,
       conversation_count: 0,
       total_cost_usd: 0,
+      billing_included: true,
     });
   }
 
