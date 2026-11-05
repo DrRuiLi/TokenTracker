@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const { test } = require("node:test");
 const { handleGrokLoginRoute, GROK_LOGIN_ROUTE } = require("../src/lib/grok-login-route");
 
@@ -59,4 +62,27 @@ test("grok login route opens the dedicated window", async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.opened, true);
   assert.equal(opened.queuePath, "C:/tmp/.tokentracker/tracker/queue.jsonl");
+});
+
+test("grok login route PUT persists billing refresh interval", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tt-grok-route-"));
+  const queuePath = path.join(dir, "queue.jsonl");
+  fs.writeFileSync(queuePath, "");
+  const res = mockRes();
+  const handled = await handleGrokLoginRoute(
+    {
+      method: "PUT",
+      headers: {},
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from(JSON.stringify({ refreshIntervalSeconds: 600 }));
+      },
+    },
+    res,
+    new URL(`http://127.0.0.1${GROK_LOGIN_ROUTE}`),
+    { queuePath, isAuthorized: () => true, signedInProbe: async () => false },
+  );
+  assert.equal(handled, true);
+  assert.equal(res.status, 200);
+  assert.equal(res.body.refreshIntervalSeconds, 600);
+  assert.equal(res.body.ok, true);
 });

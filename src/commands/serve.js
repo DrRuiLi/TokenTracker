@@ -16,6 +16,7 @@ const {
   migrateLegacyGrokBilling,
   refreshGrokBillingExport,
 } = require("../lib/grok-billing-export");
+const { startGrokBillingRefreshLoop } = require("../lib/grok-billing-scheduler");
 
 const DEFAULT_PORT = 7680;
 // Windows Delivery Optimization (DoSvc) listens on 0.0.0.0:7680 on virtually
@@ -163,8 +164,8 @@ async function cmdServe(argv) {
       // CORS preflight
       if (req.method === "OPTIONS" && !url.pathname.startsWith("/api/auth/")) {
         res.writeHead(204, {
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, x-tokentracker-local-auth",
         });
         res.end();
         return;
@@ -277,27 +278,25 @@ async function cmdServe(argv) {
   // Keep merged-usage.jsonl (queue + grok-billing export) fresh even when no
   // dashboard tab is polling. The sidecar only reads merged-usage.jsonl.
   // X-subscription billing download (Edge) runs here in TokenTracker, not TRCC.
-  {
-    const GROK_BILLING_REFRESH_MS = 90_000;
-    const refreshMergedUsage = () =>
-      ensureMergedUsage({ queuePath }).catch((e) =>
-        process.stdout.write(`Merged usage refresh warning: ${e?.message || e}\n`),
-      );
-    const refreshBillingAndMerge = () =>
-      (process.platform === "win32"
-        ? refreshGrokBillingExport({ queuePath })
-            .then(() => refreshMergedUsage())
-            .catch((e) =>
-              process.stdout.write(`Grok billing refresh warning: ${e?.message || e}\n`),
-            )
-        : refreshMergedUsage());
-    if (process.platform === "win32") {
-      migrateLegacyGrokBilling({ queuePath }).catch(() => {});
-    }
-    refreshBillingAndMerge();
-    setInterval(refreshBillingAndMerge, GROK_BILLING_REFRESH_MS).unref();
-    setInterval(refreshMergedUsage, 30_000).unref();
-  }
+  const refreshMergedUsage = () =>
+    ensureMergedUsage({ queuePath }).catch((e) =>
+      process.stdout.write(`Merged usage refresh warning: ${e?.message || e}\n`),
+    );
+  const refreshBillingAndMerge = () =>
+    (process.platform === "win32"
+      ? refreshGrokBillingExport({ queuePath })
+          .then(() => refreshMergedUsage())
+          .catch((e) =>
+            process.stdout.write(`Grok billing refresh warning: ${e?.message || e}\n`),
+          )
+      : refreshMergedUsage());
+  const grokBillingRefreshLoop = startGrokBillingRefreshLoop({
+    queuePath,
+    refreshBillingAndMerge,
+    refreshMergedUsageOnly: refreshMergedUsage,
+    migrateLegacy: () => migrateLegacyGrokBilling({ queuePath }),
+    platform: process.platform,
+  });
 
   const nativeBackgroundSync = startNativeBackgroundSync({
     onError: (e) =>
@@ -326,6 +325,7 @@ async function cmdServe(argv) {
   const shutdown = () => {
     process.stdout.write("\nShutting down...\n");
     trccSidecar?.stop();
+    grokBillingRefreshLoop?.stop();
     nativeBackgroundSync?.stop();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000);

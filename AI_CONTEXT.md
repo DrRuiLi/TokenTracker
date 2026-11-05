@@ -1,7 +1,7 @@
 # AI_CONTEXT — TokenTracker-TRCC（TokenTracker + 利民副屏）
 
 > 架构地图。AI 助手在新会话开始时先读本文件。**本文件只读，修改需用户明确同意。**
-> 最后更新：2026-11-05（基线改为上游 v1.5.7；账单导出仍由 TokenTracker 完成，副屏只读合并文件）
+> 最后更新：2026-11-05（Grok 账单拉取间隔可设，默认 5 分钟；副屏仍只读合并文件）
 
 ## 1. 目标
 
@@ -33,8 +33,10 @@ Windows 上的一份程序同时做两件事：
 |---|---|
 | `src/`、`bin/tracker.js`、`dashboard/` | TokenTracker CLI 和 React 仪表盘 |
 | `src/lib/grok-billing-export.js` | Windows 上用专用 Edge 下载 grok.com 账单 |
+| `src/lib/grok-billing-prefs.js` | 账单拉取间隔（默认 5 分钟），写入 `grok-billing-pref.json` |
+| `src/lib/grok-billing-scheduler.js` | 按偏好定时拉账单并重排间隔 |
 | `src/lib/merged-usage.js` | 把队列和账单合成 `merged-usage.jsonl` |
-| `src/lib/grok-login-route.js` | 本地接口 `/api/grok-x-login` |
+| `src/lib/grok-login-route.js` | `/api/grok-x-login`（登录 + GET/PUT 账单间隔） |
 | `TokenTrackerWin/` | .NET 8 托盘壳（WebView2）。`scripts/bundle-node.ps1` 打进 Node 22.22.2 |
 | `TokenTrackerBar/`、`TokenTrackerLinux/` | 上游的 macOS / Linux 壳，Windows 安装包不用它们 |
 | `trcc/` | 副屏 Python。`vendor/libusb-1.0.dll` 管 USB；`vendor/lhm/` 是嵌入的 LibreHardwareMonitorLib 0.9.6 及依赖 DLL |
@@ -48,7 +50,7 @@ Windows 上的一份程序同时做两件事：
 ```
 TokenTracker.exe
   └─ EmbeddedServer\node.exe  tracker serve
-       ├─ 每 90 秒：Edge 下载账单 → grok-billing.jsonl → merged-usage.jsonl
+       ├─ 按设定间隔（默认 5 分钟）：Edge 下载账单 → grok-billing.jsonl → merged-usage.jsonl
        └─ trcc\trcc-token-dash.exe --serve --parent-pid <node pid> --usage-file <merged-usage.jsonl>
 ```
 
@@ -95,11 +97,11 @@ X 订阅（Cursor + Grok）没有公开的 token 历史接口。下载在 `track
 
 - 专用 Edge 配置在队列旁边：`~/.tokentracker/tracker/edge-profile`。启动时若新位置还没有 Cookie，会从 `%LOCALAPPDATA%\trcc-token-dash\edge-profile` 复制一次。
 - 下载 `GET https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?scope=user&startTime&endTime`。窗口是本地昨天 00:00 到明天 00:00。用专用配置启动一个真实 Edge，窗口放到屏幕外。无头 Edge 和普通 HTTP 请求会被 Cloudflare 挡住，所以不能用 `--headless`。日常使用的 Edge 不用退出。
-- 登录：仪表盘用量限额里 Cursor 行的按钮，或 `/trcc` 上的登录卡，都打到 `/api/grok-x-login`。也可以运行 `scripts/open-grok-login.bat`。登完关掉那个窗口。专用窗口还开着时，刷新会报「专用登录窗口还开着」，这一轮跳过下载。
+- 登录：仪表盘用量限额里 Cursor 行（登录旁可输入账单同步间隔，单位分钟，默认 5；允许约 1–1440 分钟），或 `/trcc` 上的登录卡，都打到 `/api/grok-x-login`（`PUT` 写间隔，服务端存秒）。也可以运行 `scripts/open-grok-login.bat`。登完关掉那个窗口。专用窗口还开着时，刷新会报「专用登录窗口还开着」，这一轮跳过下载。
 - token = `prompt-text-tokens` + `completion-text-tokens` + `cached-prompt-text-tokens` + `cache-write-text-tokens`。
 - 只把账单 id、时间、模型、token、产品写入 `~/.tokentracker/tracker/grok-billing.jsonl`。原始 CSV 解析后删除。旧文件同样只迁移一次。
 - `merged-usage.js` 的规则：其他来源的队列行始终保留；某一天的账单里有 `cursor` 或 `grok-bot` 时，这一天同产品的队列行让位给账单。账单按产品、模型、小时合成队列形状的行，`total_tokens` 有数，输入/输出列为 0，所以这几行的费用是 $0。
-- `serve.js` 每 90 秒下载并重写合并文件，另外每 30 秒只重写合并文件。副屏约每 2 秒重读该文件。
+- `serve.js` 按 `grok-billing-pref.json` 的间隔下载并重写合并文件（默认 300 秒），另外每 30 秒只重写合并文件（不重新下 CSV）。改间隔后立即按新周期重排定时器。副屏约每 2 秒重读该文件。
 
 禁止记录或打印 JWT、Cookie。不要把 `state.vscdb` 再接回副屏：该库可以到几十 GB，以前的只读 CSV 路径已经去掉。
 

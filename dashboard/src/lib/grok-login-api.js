@@ -10,13 +10,18 @@ async function payload(response) {
   return data;
 }
 
-async function authed(method) {
+async function authed(method, body) {
   const auth = await getLocalApiAuthHeaders();
-  return payload(await fetch(GROK_LOGIN_PATH, {
+  const init = {
     method,
     headers: { Accept: "application/json", ...auth },
     cache: "no-store",
-  }));
+  };
+  if (body !== undefined) {
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  return payload(await fetch(GROK_LOGIN_PATH, init));
 }
 
 export function fetchGrokLoginStatus() {
@@ -25,4 +30,8 @@ export function fetchGrokLoginStatus() {
 
 export function openGrokLoginWindow() {
   return authed("POST");
+}
+
+export function setGrokBillingRefreshInterval(refreshIntervalSeconds) {
+  return authed("PUT", { refreshIntervalSeconds });
 }
