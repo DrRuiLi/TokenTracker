@@ -237,6 +237,29 @@ function isHeadlessCommand(commandLine) {
   return String(commandLine || "").toLowerCase().includes("--headless");
 }
 
+// Headless Edge is stopped by Cloudflare and never starts the CSV download.
+// The billing window is a real Edge placed off-screen; the login window is not.
+function isBillingDownloadCommand(commandLine) {
+  const text = String(commandLine || "").toLowerCase();
+  return text.includes("--headless") || text.includes("--window-position=-32000,-32000");
+}
+
+function billingDownloadArgs(profileDir, url) {
+  return [
+    `--user-data-dir=${profileDir}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--disable-sync",
+    "--disable-notifications",
+    "--disable-session-crashed-bubble",
+    "--hide-crash-restore-bubble",
+    "--window-position=-32000,-32000",
+    "--window-size=200,200",
+    url,
+  ];
+}
+
 async function profileProcesses(profileDir) {
   if (process.platform !== "win32") return [];
   const marker = profileDir.toLowerCase();
@@ -285,6 +308,59 @@ async function killHeadless(profileDir) {
   await killPids(rows.filter((row) => isHeadlessCommand(row.commandLine)).map((row) => row.pid));
 }
 
+async function killBillingBrowsers(profileDir) {
+  const rows = await profileProcesses(profileDir);
+  await killPids(rows.filter((row) => isBillingDownloadCommand(row.commandLine)).map((row) => row.pid));
+}
+
+function startOffscreenWatch(rootPid, profileDir) {
+  const script = [
+    "$ErrorActionPreference = 'SilentlyContinue'",
+    "Add-Type -Namespace TT -Name WinHide -UsingNamespace System.Runtime.InteropServices -MemberDefinition @'",
+    "[DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);",
+    "public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);",
+    "[DllImport(\"user32.dll\")] public static extern bool EnumWindows(EnumProc lpEnumFunc, IntPtr lParam);",
+    "[DllImport(\"user32.dll\")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);",
+    "[DllImport(\"user32.dll\")] public static extern int GetWindowLong(IntPtr hWnd, int nIndex);",
+    "[DllImport(\"user32.dll\")] public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);",
+    "'@",
+    "$root = [int]$env:TT_EDGE_ROOT",
+    "$marker = $env:TT_EDGE_PROFILE.ToLower()",
+    "$until = [DateTime]::UtcNow.AddMinutes(3)",
+    "while ([DateTime]::UtcNow -lt $until) {",
+    "  if (-not (Get-Process -Id $root -ErrorAction SilentlyContinue)) { break }",
+    "  $script:hidePids = New-Object 'System.Collections.Generic.HashSet[uint32]'",
+    "  [void]$script:hidePids.Add([uint32]$root)",
+    "  Get-CimInstance Win32_Process -Filter \"name='msedge.exe'\" | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($marker) } | ForEach-Object { [void]$script:hidePids.Add([uint32]$_.ProcessId) }",
+    "  $cb = [TT.WinHide+EnumProc]{ param($hwnd, $lp)",
+    "    $procId = [uint32]0",
+    "    [void][TT.WinHide]::GetWindowThreadProcessId($hwnd, [ref]$procId)",
+    "    if ($script:hidePids.Contains($procId)) {",
+    "      $style = [TT.WinHide]::GetWindowLong($hwnd, -20)",
+    "      [void][TT.WinHide]::SetWindowLong($hwnd, -20, ($style -bor 128) -band (-bnot 262144))",
+    "      [void][TT.WinHide]::ShowWindow($hwnd, 0)",
+    "    }",
+    "    return $true",
+    "  }",
+    "  [void][TT.WinHide]::EnumWindows($cb, [IntPtr]::Zero)",
+    "  Start-Sleep -Milliseconds 250",
+    "}",
+  ].join("\n");
+  return cp.spawn(
+    "powershell",
+    ["-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
+    {
+      windowsHide: true,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        TT_EDGE_ROOT: String(rootPid),
+        TT_EDGE_PROFILE: profileDir,
+      },
+    },
+  );
+}
+
 async function setDownloadDir(profileDir, destDir) {
   const prefsPath = path.join(profileDir, "Default", "Preferences");
   if (!fs.existsSync(prefsPath)) {
@@ -302,7 +378,6 @@ async function setDownloadDir(profileDir, destDir) {
 
 async function waitCsv(destDir, startedMs, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
-  const idleDeadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     const partial = fs
       .readdirSync(destDir)
@@ -317,12 +392,9 @@ async function waitCsv(destDir, startedMs, timeoutMs) {
         fs.statSync(a).mtimeMs > fs.statSync(b).mtimeMs ? a : b,
       );
     }
-    if (!partial.length && !ready.length && Date.now() > idleDeadline) {
-      throw new GrokBillingError("用量页面没有开始下载。请先在限额页完成 X 登录，并关掉那个窗口");
-    }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new GrokBillingError("专用 Edge 没有在限定时间内下完用量 CSV");
+  throw new GrokBillingError("专用 Edge 没有在限定时间内下完用量 CSV。请先在限额页完成 X 登录，并关掉那个窗口");
 }
 
 async function downloadCsv({ queuePath, startMs, endMs, timeoutMs = DOWNLOAD_TIMEOUT_MS } = {}) {
@@ -344,12 +416,12 @@ async function downloadCsv({ queuePath, startMs, endMs, timeoutMs = DOWNLOAD_TIM
     );
   }
   const running = await profileProcesses(profileDir);
-  if (running.some((row) => !isHeadlessCommand(row.commandLine))) {
+  if (running.some((row) => !isBillingDownloadCommand(row.commandLine))) {
     const error = new GrokBillingError("专用登录窗口还开着，请先关掉它");
     error.code = "login-window";
     throw error;
   }
-  await killHeadless(profileDir);
+  await killBillingBrowsers(profileDir);
   const destDir = path.join(path.dirname(storePath), "grok-download");
   await fsp.mkdir(destDir, { recursive: true });
   for (const name of fs.readdirSync(destDir)) {
@@ -362,28 +434,22 @@ async function downloadCsv({ queuePath, startMs, endMs, timeoutMs = DOWNLOAD_TIM
   await setDownloadDir(profileDir, destDir);
   const startedMs = Date.now();
   const url = exportUrl(startMs, endMs);
-  const args = [
-    `--user-data-dir=${profileDir}`,
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-extensions",
-    "--disable-sync",
-    "--disable-notifications",
-    "--disable-session-crashed-bubble",
-    "--hide-crash-restore-bubble",
-    "--headless=new",
-    url,
-  ];
-  const proc = spawnHidden(EDGE, args);
+  const proc = spawnHidden(EDGE, billingDownloadArgs(profileDir, url));
+  const hider = proc.pid ? startOffscreenWatch(proc.pid, profileDir) : null;
   try {
     return await waitCsv(destDir, startedMs, timeoutMs);
   } finally {
+    try {
+      hider?.kill();
+    } catch {
+      /* ignore */
+    }
     try {
       proc.kill();
     } catch {
       /* ignore */
     }
-    await killHeadless(profileDir);
+    await killBillingBrowsers(profileDir);
   }
 }
 
@@ -477,6 +543,8 @@ module.exports = {
   migrateLegacyGrokBilling,
   openGrokLogin,
   isHeadlessCommand,
+  isBillingDownloadCommand,
+  billingDownloadArgs,
   localWindow,
   exportUrl,
   usageTokens,

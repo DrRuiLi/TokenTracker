@@ -444,6 +444,37 @@ def test_queue_dedup_timezone_and_billable_heal():
     assert s["total_all"] == 115 and s["active_days"] == 1
 
 
+def test_grok_bot_weekly_view():
+    from render import grok_bot_view
+    now = dt.datetime(2026, 11, 5, 5, 41, tzinfo=dt.timezone.utc)
+    window = {
+        "used_percent": 57.84,
+        "reset_at": "2026-11-08T03:09:14.090Z",
+        "limit_window_seconds": 604800,
+    }
+    view = grok_bot_view(window, now)
+    assert view["used_percent"] == 57.84
+    # 05:41 -> 03:09 is 2d 21h once minutes are dropped: 69h of a 168h week.
+    assert view["remain_hours"] == 69 and view["window_hours"] == 168
+    assert view["remain_percent"] == 100 * 69 / 168
+    assert view["elapsed_hours"] == 99
+    assert view["elapsed_percent"] == 100 * 99 / 168
+    assert view["remain_label"] == "2 d 21 h"
+    same_hour = grok_bot_view(window, now + dt.timedelta(minutes=20))
+    assert same_hour["elapsed_hours"] == 99 and same_hour["elapsed_percent"] == view["elapsed_percent"]
+    next_hour = grok_bot_view(window, now + dt.timedelta(hours=1))
+    assert next_hour["remain_hours"] == 68 and next_hour["remain_label"] == "2 d 20 h"
+    assert next_hour["elapsed_hours"] == 100
+    assert grok_bot_view({**window, "reset_at": "2026-11-01T00:00:00Z"}, now) is None
+    stats = token_stats_from_csv(CSV)
+    stats["grok_bot"] = view
+    img = render(placeholder_metrics(), stats)
+    assert img.size == (960, 320)
+    blank = dict(stats)
+    blank["grok_bot"] = None
+    assert render(placeholder_metrics(), blank, layout="system-first").size == (960, 320)
+
+
 def test_preview_render():
     s = token_stats_from_csv(CSV)
     img = render(placeholder_metrics(), s)
@@ -476,6 +507,7 @@ if __name__ == "__main__":
         test_theme_edit_derived_shades,
         test_host_settings_and_parent,
         test_queue_dedup_timezone_and_billable_heal,
+        test_grok_bot_weekly_view,
         test_preview_render,
     ):
         fn()

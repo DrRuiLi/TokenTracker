@@ -26,6 +26,7 @@ COLOR_GROUPS: List[Tuple[str, List[Tuple[str, str]]]] = [
     ("Token 图表", [
         ("daily_bar", "每日柱状图"), ("heatmap", "热图"), ("today_ring", "热图今日框"),
         ("heat_empty", "热图空格"), ("hourly_bar", "今日按小时"),
+        ("weekly_bar", "周用量"),
     ]),
     ("模型占比", [
         ("models.0", "模型 1"), ("models.1", "模型 2"),

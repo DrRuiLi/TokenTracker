@@ -59,6 +59,7 @@ _PRESET_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "daily_bar": "#f97316", "hourly_bar": "#fb923c",
         "heat_empty": "#2e1a0c", "heatmap": "#f97316",
         "today_ring": "#fff4ec",
+        "weekly_bar": "#904f09",
         "models": ["#f97316", "#facc15", "#ef4444", "#a3e635"],
     },
     # 紫罗兰: deep violet with purple accents.

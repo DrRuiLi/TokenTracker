@@ -4,7 +4,9 @@ const os = require("node:os");
 const path = require("node:path");
 const { test } = require("node:test");
 const {
+  billingDownloadArgs,
   eventsFromCsvText,
+  isBillingDownloadCommand,
   isHeadlessCommand,
   mergeStore,
   resolveGrokBillingPath,
@@ -14,6 +16,17 @@ const {
 test("isHeadlessCommand tells a billing download apart from the login window", () => {
   assert.equal(isHeadlessCommand("msedge.exe --headless=new --user-data-dir=C:\\p"), true);
   assert.equal(isHeadlessCommand("msedge.exe --user-data-dir=C:\\p https://grok.com/dashboard/usage"), false);
+});
+
+test("billing download uses a real off-screen Edge, not headless mode", () => {
+  const args = billingDownloadArgs("C:\\profile", "https://grok.com/dashboard/api/export");
+  assert.equal(args.some((arg) => arg.includes("--headless")), false);
+  assert.ok(args.includes("--window-position=-32000,-32000"));
+  assert.equal(isBillingDownloadCommand(args.join(" ")), true);
+  assert.equal(
+    isBillingDownloadCommand("msedge.exe --user-data-dir=C:\\p https://grok.com/dashboard/usage"),
+    false,
+  );
 });
 test("usageTokens sums Grok billing usage JSON", () => {
   const raw = JSON.stringify({

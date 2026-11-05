@@ -52,6 +52,7 @@ DEFAULT_THEME = {
     "heat_levels": [(16, 52, 104), (18, 82, 168), (24, 116, 226), (60, 158, 255)],
     "today_ring": (245, 246, 250),
     "models": [(88, 140, 255), (160, 120, 240), (45, 200, 170), (240, 140, 80)],
+    "weekly_bar": (240, 140, 80),
 }
 
 # Back-compat module constants (default look)
@@ -266,6 +267,152 @@ def _heatmap(c, x, y, w, t, cell=10, gap=2):
                 c.d.rounded_rectangle(c.s(cx - 1, cy - 1, cx + cell + 1, cy + cell + 1), 3 * SS, outline=WHITE, width=int(1.5 * SS))
 
 
+def grok_bot_cache_path():
+    return os.path.join(os.path.expanduser("~"), ".tokentracker", "tracker", "cursor-usage-limits-cache.json")
+
+
+def grok_bot_view(window, now):
+    """Weekly Grok Bot window -> used percent, remaining-time percent, and 'N d N h'."""
+    if not isinstance(window, dict) or now is None:
+        return None
+    try:
+        used = float(window.get("used_percent"))
+    except (TypeError, ValueError):
+        return None
+    if used != used or used < 0 or used > 100:
+        return None
+    raw_reset = window.get("reset_at")
+    if not isinstance(raw_reset, str) or not raw_reset.strip():
+        return None
+    try:
+        reset = dt.datetime.fromisoformat(raw_reset.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if reset.tzinfo is None:
+        reset = reset.replace(tzinfo=dt.timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=TZ)
+    remain = (reset - now).total_seconds()
+    if remain <= 0:
+        return None
+    try:
+        window_s = float(window.get("limit_window_seconds"))
+    except (TypeError, ValueError):
+        window_s = 0
+    if window_s <= 0:
+        window_s = 7 * 24 * 3600
+    # Hours only. The label is time left; the tick is time already passed, so it grows right.
+    remain_hours = int(remain // 3600)
+    window_hours = max(1, int(round(window_s / 3600.0)))
+    remain_hours = min(window_hours, remain_hours)
+    elapsed_hours = window_hours - remain_hours
+    days, hours = divmod(remain_hours, 24)
+    return {
+        "used_percent": used,
+        "remain_hours": remain_hours,
+        "elapsed_hours": elapsed_hours,
+        "window_hours": window_hours,
+        "remain_percent": 100.0 * remain_hours / window_hours,
+        "elapsed_percent": 100.0 * elapsed_hours / window_hours,
+        "remain_label": f"{days} d {hours} h",
+    }
+
+
+def load_grok_bot_view(path=None, now=None):
+    path = path or grok_bot_cache_path()
+    now = now or dt.datetime.now(dt.timezone.utc)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return None
+    cursor = data.get("cursor") if isinstance(data, dict) else None
+    window = cursor.get("quaternary_window") if isinstance(cursor, dict) else None
+    return grok_bot_view(window, now)
+
+
+def _attach_grok_bot(token_stats):
+    stats = dict(token_stats or {})
+    if "grok_bot" not in stats:
+        stats["grok_bot"] = load_grok_bot_view()
+    return stats
+
+
+def _today_weekly_bounds():
+    """Right column: TODAY card above a separate WEEKLY card."""
+    gap, weekly_h = 8, 64
+    top = 8
+    total = H - 16
+    today_h = total - gap - weekly_h
+    return top, today_h, top + today_h + gap, weekly_h
+
+
+def _weekly_tick(view):
+    if not view:
+        return 0, None
+    frac = max(0.0, min(1.0, view["used_percent"] / 100.0))
+    if view.get("window_hours"):
+        elapsed = view.get("elapsed_hours")
+        if elapsed is None:
+            elapsed = view["window_hours"] - view.get("remain_hours", 0)
+        tick = elapsed / view["window_hours"]
+    else:
+        tick = 1 - view.get("remain_percent", 0) / 100.0
+    return frac, max(0.0, min(1.0, tick))
+
+
+def _draw_weekly_card(c, view, x, y, w, h):
+    """WEEKLY and the remaining time share one baseline. The percent stays at the TODAY figure size."""
+    c.card(x, y, w, h, r=14)
+    pad = 14
+    title_y = y + 12
+    c.text((x + pad, title_y), "WEEKLY", 14, c.th["text_dim"], "SemiBold")
+    pct = f"{view['used_percent']:.0f}%" if view else "—"
+    pct_size = 34
+    pct_box = font(pct_size, "Bold").getbbox(pct)
+    ink_w = (pct_box[2] - min(0, pct_box[0])) / SS
+    pct_h = (pct_box[3] - pct_box[1]) / SS
+    pct_right = x + w - pad
+    c.text((pct_right - pct_box[2] / SS, y + (h - pct_h) / 2), pct, pct_size, c.th["text"], "Bold", anchor="lt")
+    bar_h = 12
+    bar_x = x + pad
+    bar_right = pct_right - ink_w - 8
+    bar_w = max(40, bar_right - bar_x)
+    bar_y = y + h - 12 - bar_h
+    if view:
+        ascent, _ = font(14, "SemiBold").getmetrics()
+        c.text((bar_right, title_y + ascent / SS), view["remain_label"], 13, c.th["text_dim"], "Medium", anchor="rs")
+    frac, tick = _weekly_tick(view)
+    c.hbar(bar_x, bar_y, bar_w, bar_h, frac, c.th["weekly_bar"])
+    if tick is None:
+        return
+    tx = bar_x + bar_w * tick
+    mark = c.th["text"]
+    c.d.line(c.s(tx, bar_y - 4, tx, bar_y + bar_h + 3), fill=mark, width=max(SS, int(1.6 * SS)))
+    c.d.line(c.s(tx - 3.5, bar_y - 4, tx + 3.5, bar_y - 4), fill=mark, width=max(SS, int(1.6 * SS)))
+
+
+def _draw_fixed_model_rows(c, t, x, y, w, *, count=3, row_height=42):
+    colors = c.th["models"]
+    total = t.get("today", 0) or 1
+    models = (t.get("models") or [])[:count]
+    if not models:
+        c.text((x, y), "No model usage yet", 13, c.th["text_dim"], "Medium")
+        return
+    for i, (name, tokens) in enumerate(models):
+        row_y = y + i * row_height
+        color = colors[i % len(colors)]
+        c.d.ellipse(c.s(x, row_y + 5, x + 8, row_y + 13), fill=color)
+        pct = f"{100 * tokens / total:.0f}%"
+        c.text((x + w, row_y), pct, 13, c.th["text_dim"], "SemiBold", anchor="ra")
+        label = str(name)
+        max_width = w - 48
+        while c.tw(label, 14, "Medium") > max_width and len(label) > 4:
+            label = label[:-2] + "…"
+        c.text((x + 14, row_y), label, 14, c.th["text"], "Medium")
+        c.hbar(x + 14, row_y + 18, w - 14, 4, tokens / total, color)
+
+
 def _draw_model_rows(c, t, x, y, w, *, count=4, row_height=37):
     colors = c.th["models"]
     total = t.get("today", 0) or 1
@@ -351,13 +498,15 @@ def _render_system_first(metrics, t, th):
         c.text((x + 10, y + 28), value, 23, th["text"], "Bold")
         c.spark(x + 9, y + 68, card_w - 18, 32, hist, color, vmax[i])
 
-    c.card(right_x, m, right_w, H - 2 * m)
-    c.text((right_x + 14, 18), "TODAY", 13, th["text_dim"], "SemiBold")
-    c.text((right_x + 14, 37), fmt_tokens(t.get("today", 0)), 39, th["text"], "Bold")
-    c.text((right_x + 14, 87), f"7D  {fmt_tokens(t.get('total_7d', 0))}", 14, th["text_dim"], "Medium")
-    c.text((right_x + 14, 108), f"30D  {fmt_tokens(t.get('total_30d', 0))}", 14, th["text_dim"], "Medium")
-    c.text((right_x + 14, 139), "TOP MODELS", 12, th["text_dim"], "SemiBold")
-    _draw_model_rows(c, t, right_x + 14, 158, right_w - 28, count=3, row_height=40)
+    top, today_h, weekly_y, weekly_h = _today_weekly_bounds()
+    c.card(right_x, top, right_w, today_h)
+    c.text((right_x + 14, 16), "TODAY", 13, th["text_dim"], "SemiBold")
+    c.text((right_x + 14, 34), fmt_tokens(t.get("today", 0)), 34, th["text"], "Bold")
+    c.text((right_x + 14, 78), f"7D  {fmt_tokens(t.get('total_7d', 0))}", 14, th["text_dim"], "Medium")
+    c.text((right_x + 14, 98), f"30D  {fmt_tokens(t.get('total_30d', 0))}", 14, th["text_dim"], "Medium")
+    c.text((right_x + 14, 122), "TOP MODELS", 12, th["text_dim"], "SemiBold")
+    _draw_fixed_model_rows(c, t, right_x + 14, 140, right_w - 28, count=3, row_height=36)
+    _draw_weekly_card(c, t.get("grok_bot"), right_x, weekly_y, right_w, weekly_h)
     return c.img.resize((W, H), Image.LANCZOS)
 
 
@@ -652,6 +801,7 @@ def render(metrics, token_stats, theme=None, layout="classic"):
     models(list of (name, tokens) sorted desc), total_7d, total_30d,
     heat(list of (date_str, tokens), full history), total_all, active_days, first_date."""
     th = resolve_theme(theme)
+    token_stats = _attach_grok_bot(token_stats)
     if layout == "token-focus":
         return _render_token_focus(metrics, token_stats, th)
     if layout == "system-first":
@@ -713,10 +863,11 @@ def render(metrics, token_stats, theme=None, layout="classic"):
     if since and c.tw(cap, 14, "Medium") + c.tw(since, 14, "Medium") + 16 <= bw_:
         c.text((bx + bw_, H - M - 30), since, 14, GRAY, "Medium", anchor="ra")
 
-    # ---- right: today detail ----
+    # ---- right: today detail, with WEEKLY as its own card underneath ----
     rx0 = mx0 + mw + G
     rw = W - M - rx0
-    c.card(rx0, M, rw, H - 2 * M)
+    _top, today_h, weekly_y, weekly_h = _today_weekly_bounds()
+    c.card(rx0, M, rw, today_h)
     c.text((rx0 + 14, M + 12), "TODAY", 14, GRAY, "SemiBold")
     c.text((rx0 + 14, M + 30), fmt_tokens(t["today"]), 34, WHITE, "Bold")
     # hourly bars
@@ -729,25 +880,9 @@ def render(metrics, token_stats, theme=None, layout="classic"):
     for hr, anc in ((0, "la"), (12, "ma"), (23, "ra")):
         px = hx if hr == 0 else hx + hw if hr == 23 else hx + hw / 2
         c.text((px, hy + hh + 5), f"{hr:02d}h" if hr != 23 else "24h", 14, GRAY, "Medium", anchor=anc)
-    # models
-    models = t["models"][:4]
-    total = t["today"] or 1
-    top = M + 98
-    rowh = (H - M - 12 - top) / max(1, len(models))
-    for i, (name, n) in enumerate(models):
-        y = top + i * rowh
-        col = MODEL_COLORS[i % len(MODEL_COLORS)]
-        c.d.ellipse(c.s(rx0 + 14, y + 5, rx0 + 22, y + 13), fill=col)
-        pct = f"{100 * n / total:.0f}%"
-        pw = 40
-        c.text((rx0 + rw - 14, y), pct, 14, GRAY, "SemiBold", anchor="ra")
-        c.text((rx0 + rw - 14 - pw, y), fmt_tokens(n), 15, WHITE, "SemiBold", anchor="ra")
-        maxname = rw - 28 - 14 - pw - 60
-        nm = name
-        while c.tw(nm, 15, "Medium") > maxname and len(nm) > 4:
-            nm = nm[:-2] + "…" if not nm.endswith("…") else nm[:-2] + "…"
-        c.text((rx0 + 28, y), nm, 15, WHITE, "Medium")
-        c.hbar(rx0 + 14, y + 23, rw - 28, 4, n / total, col)
+    # Up to three models at a fixed pitch. WEEKLY sits in the card below.
+    _draw_fixed_model_rows(c, t, rx0 + 14, M + 96, rw - 28, count=3, row_height=46)
+    _draw_weekly_card(c, t.get("grok_bot"), rx0, weekly_y, rw, weekly_h)
 
     return c.img.resize((W, H), Image.LANCZOS)
 

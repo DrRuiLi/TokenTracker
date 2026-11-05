@@ -94,7 +94,7 @@ Node 在 Windows Job Object 里（`KILL_ON_JOB_CLOSE`）。`--serve` 无 Tk、�
 X 订阅（Cursor + Grok）没有公开的 token 历史接口。下载在 `tracker serve` 里，只在 Windows 上跑：
 
 - 专用 Edge 配置在队列旁边：`~/.tokentracker/tracker/edge-profile`。启动时若新位置还没有 Cookie，会从 `%LOCALAPPDATA%\trcc-token-dash\edge-profile` 复制一次。
-- 下载 `GET https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?scope=user&startTime&endTime`。窗口是本地昨天 00:00 到明天 00:00。无头 Edge、普通 HTTP 请求会被 Cloudflare 挡住。日常使用的 Edge 不用退出。
+- 下载 `GET https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?scope=user&startTime&endTime`。窗口是本地昨天 00:00 到明天 00:00。用专用配置启动一个真实 Edge，窗口放到屏幕外。无头 Edge 和普通 HTTP 请求会被 Cloudflare 挡住，所以不能用 `--headless`。日常使用的 Edge 不用退出。
 - 登录：仪表盘用量限额里 Cursor 行的按钮，或 `/trcc` 上的登录卡，都打到 `/api/grok-x-login`。也可以运行 `scripts/open-grok-login.bat`。登完关掉那个窗口。专用窗口还开着时，刷新会报「专用登录窗口还开着」，这一轮跳过下载。
 - token = `prompt-text-tokens` + `completion-text-tokens` + `cached-prompt-text-tokens` + `cache-write-text-tokens`。
 - 只把账单 id、时间、模型、token、产品写入 `~/.tokentracker/tracker/grok-billing.jsonl`。原始 CSV 解析后删除。旧文件同样只迁移一次。
