@@ -102,21 +102,10 @@ internal sealed class DashboardWindow : Window
         try { Icon = LoadWindowIcon(); } catch { /* fall back to default */ }
 
         // Borderless but resizable + Aero-snappable: WindowChrome keeps the resize
-        // borders + snap while removing the OS caption (CaptionHeight = 0, because the
-        // title strip is injected into the web content). Rounded corners match the
-        // macOS window chrome.
-        WindowChrome.SetWindowChrome(this, new WindowChrome
-        {
-            CaptionHeight = 0,
-            ResizeBorderThickness = new Thickness(6),
-            CornerRadius = new CornerRadius(8),
-            // -1 = "sheet of glass": the whole client area is treated as glass frame, so
-            // the DWM system backdrop (Mica/Acrylic) renders across the entire window.
-            // With 0 the client area is opaque and the backdrop never shows (the
-            // transparent page regions then fall back to black).
-            GlassFrameThickness = new Thickness(-1),
-            UseAeroCaptionButtons = false,
-        });
+        // borders + snap. CaptionHeight matches the injected 28px drag strip so the
+        // OS treats the top band like a real title bar (Snap, double-click maximize).
+        // Min/max/close glyphs stay in the WebView; see WM_NCHITTEST in BorderlessWindowShell.
+        ApplyDashboardWindowChrome(maximized: false);
 
         // NOTE: do NOT set DefaultBackgroundColor = Transparent via the API — on the WPF
         // control that maps to the dark ApplicationPageBackgroundThemeBrush instead of
@@ -127,6 +116,7 @@ internal sealed class DashboardWindow : Window
         Loaded += OnLoaded;
         StateChanged += (_, _) =>
         {
+            ApplyDashboardWindowChrome(WindowState == WindowState.Maximized);
             SyncMaxGlyph();
             // Minimising this window (WindowStyle.None + WindowChrome
             // GlassFrameThickness=-1 "sheet of glass" + DwmExtendFrameIntoClientArea(-1)
@@ -201,6 +191,18 @@ internal sealed class DashboardWindow : Window
             ? WindowState.Normal
             : WindowState.Maximized;
 
+    private void ApplyDashboardWindowChrome(bool maximized)
+    {
+        WindowChrome.SetWindowChrome(this, new WindowChrome
+        {
+            CaptionHeight = BorderlessWindowShell.NativeCaptionHeightPx,
+            ResizeBorderThickness = maximized ? new Thickness(0) : new Thickness(6),
+            CornerRadius = new CornerRadius(8),
+            GlassFrameThickness = new Thickness(-1),
+            UseAeroCaptionButtons = false,
+        });
+    }
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -255,6 +257,19 @@ internal sealed class DashboardWindow : Window
     /// </summary>
     private nint DashboardWndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
+        if (BorderlessWindowShell.TryHandleMessage(hwnd, msg, lParam, out var shellResult))
+        {
+            handled = true;
+            return shellResult;
+        }
+
+        if (msg == WM_NCLBUTTONDBLCLK && wParam.ToInt32() == HTTOP)
+        {
+            ToggleMaximize();
+            handled = true;
+            return nint.Zero;
+        }
+
         if (msg != WM_MOUSEHWHEEL) return nint.Zero;
         if (_exiting || !_coreReady) return nint.Zero;
 
@@ -1218,7 +1233,9 @@ internal sealed class DashboardWindow : Window
     // ── P/Invoke + constants ───────────────────────────────────────────
 
     private const int WM_NCLBUTTONDOWN = 0xA1;
+    private const int WM_NCLBUTTONDBLCLK = 0x00A3;
     private const int HTCAPTION = 2;
+    private const int HTTOP = 12;
     private const int WM_MOUSEHWHEEL = 0x020E; // horizontal wheel tilt (no WPF routing exists for it)
 
     // DWM (Win10 2004+ / Win11)
