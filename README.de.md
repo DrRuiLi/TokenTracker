@@ -1,3 +1,12 @@
+> **Dieser Fork ([DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)) ergänzt [upstream Token Tracker](https://github.com/xiufengsun/TokenTracker) um:**
+>
+> - **TRCC-Steuerpanel für das Sekundärdisplay** — Unter Windows treibt die Tray-App mit `tracker serve` das Thermalright-**HydroNous R1**-Sekundärdisplay (960×320 USB). Layout, Theme und Push konfigurierst du im lokalen Dashboard unter **Tools → `/trcc`**. Das USB-Bulk-Frame-Protokoll stammt angepasst von [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) (GPL-3.0; siehe `trcc/NOTICE`).
+> - **X-Abonnement-Nutzung** — Mit X-Anmeldung im Dashboard holt TokenTracker **grok.com**-Abrechnungs-CSV und merged sie mit lokalen Hook-Daten; Sekundärdisplay und Haupt-Dashboard teilen sich die zusammengeführten Werte (Details in `trcc/README.md` und `AI_CONTEXT.md`).
+
+<p align="center">
+  <img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker Sekundäranzeige" width="820" />
+</p>
+
 <div align="center">
 
 # Token Tracker
@@ -157,15 +166,6 @@ Aktualisieren mit `brew upgrade --cask xiufengsun/tokentracker/tokentracker`. De
 **Desktop-Pet** — ein Pixel-Begleiter, der auf dem Desktop schwebt und auf den echten Token-Verbrauch reagiert: Er codet mit, feiert Streaks und schläft in Pausen. Community-Pets per [codex-pets.net](https://codex-pets.net)-Link oder `.codex-pet.zip` importieren — V2-Pets folgen dem Cursor mit dem Blick in 16 Richtungen. macOS, Windows und Web.
 
 <img src="https://raw.githubusercontent.com/xiufengsun/tokentracker/main/docs/screenshots/pet.png" alt="Desktop Pet" />
-
-</td>
-</tr>
-<tr>
-<td colspan="2">
-
-**Sekundäranzeige (Windows)** — Im Dashboard unter **Tools → Sekundäranzeige**: Vorschau für die Thermalright HydroNous R1, Push-Steuerung, Layouts und Themes; auf dem Hardware-Display u. a. Token-Nutzung und Grok-Bot-Wochenlimit.
-
-<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker Sekundäranzeige" width="820" />
 
 </td>
 </tr>

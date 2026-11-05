@@ -1,3 +1,12 @@
+> **本仓库（[DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)）在 [上游 Token Tracker](https://github.com/xiufengsun/TokenTracker) 基础上新增：**
+>
+> - **TRCC 副屏控制面板** —— Windows 托盘版随 `tracker serve` 驱动利民 **HydroNous R1** 副屏（960×320 USB）；在本地仪表盘 **「工具」→ `/trcc`** 可预览画面、切换布局/主题并控制推送。USB Bulk 推帧协议改编自 [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)（GPL-3.0，见 `trcc/NOTICE`）。
+> - **X 订阅用量** —— 支持通过仪表盘登录 X 账号，由 TokenTracker 拉取 **grok.com** 账单并与本地 hook 用量合并；副屏与主仪表盘共用合并后的用量统计（详见 `trcc/README.md` 与仓库内 `AI_CONTEXT.md`）。
+
+<p align="center">
+  <img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker 副屏设置页" width="820" />
+</p>
+
  <div align="center">
 
 # Token Tracker
@@ -156,15 +165,6 @@ brew install xiufengsun/tokentracker/tokentracker
 **桌面宠物** —— 悬浮在桌面上的像素小伙伴，实时响应你的 token 消耗：你写代码它也写，连击时庆祝，休息时打盹。粘贴 [codex-pets.net](https://codex-pets.net) 链接或 `.codex-pet.zip` 即可导入社区宠物，V2 宠物还能 16 方向转头追随你的鼠标。macOS / Windows / Web 三端支持。
 
 <img src="https://raw.githubusercontent.com/xiufengsun/tokentracker/main/docs/screenshots/pet.png" alt="Desktop Pet" />
-
-</td>
-</tr>
-<tr>
-<td colspan="2">
-
-**副屏（Windows）** —— 仪表盘「工具 → 副屏」：预览利民 HydroNous R1 画面、推送与布局/主题，副屏上可显示 token 用量与 Grok Bot 周限额等。
-
-<img src="./docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker 副屏设置页" width="820" />
 
 </td>
 </tr>

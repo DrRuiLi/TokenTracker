@@ -1,3 +1,12 @@
+> **This fork ([DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)) adds the following on top of [upstream Token Tracker](https://github.com/xiufengsun/TokenTracker):**
+>
+> - **TRCC secondary-display control panel** — On Windows, the tray app drives a Thermalright **HydroNous R1** sub-display (960×320 USB) alongside `tracker serve`. Configure layout, theme, and push from the local dashboard under **Tools → `/trcc`**. The USB bulk frame protocol is adapted from [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) (GPL-3.0; see `trcc/NOTICE`).
+> - **X subscription usage** — Sign in with X in the dashboard so TokenTracker can fetch **grok.com** billing CSV and merge it with local hook data; the sub-display and main dashboard share the merged totals (see `trcc/README.md` and `AI_CONTEXT.md` in this repo).
+
+<p align="center">
+  <img src="docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker secondary display settings" width="820" />
+</p>
+
  <div align="center">
 
 # Token Tracker
@@ -219,15 +228,6 @@ An Arch `PKGBUILD` for a local pacman install lives in `TokenTrackerLinux/packag
 **Desktop Pet** — a pixel companion that floats on your desktop and reacts to your real token burn: it codes when you code, celebrates streaks, and sleeps when you rest. Import community pets from [codex-pets.net](https://codex-pets.net) with a link or a `.codex-pet.zip` — V2 pets even turn their head to follow your cursor in 16 directions. macOS, Windows, and web.
 
 <img src="https://raw.githubusercontent.com/xiufengsun/tokentracker/main/docs/screenshots/pet.png" alt="Desktop Pet" />
-
-</td>
-</tr>
-<tr>
-<td colspan="2">
-
-**Secondary display (Windows)** — Dashboard **Tools → Secondary display**: preview your Thermalright HydroNous R1 panel, push controls, layouts and themes; the hardware screen can show token usage, Grok Bot weekly limits, and system metrics.
-
-<img src="docs/screenshots/trcc-dashboard-tools.png" alt="TokenTracker secondary display settings" width="820" />
 
 </td>
 </tr>
