@@ -14,6 +14,7 @@ import { buildResetBankRows } from "./usage-limits-reset-bank.js";
 import { PROVIDER_LIMIT_SPECS } from "./usage-limits-provider-specs.js";
 import { GrokXLoginButton } from "./GrokXLoginButton.jsx";
 import { CursorGrokLoginStatus } from "./CursorGrokLoginStatus.jsx";
+import { GrokBillingSyncStatus } from "./GrokBillingSyncStatus.jsx";
 import { HoverTooltip } from "../../components/HoverTooltip.jsx";
 import { cycleView, countdownText, remainingLabel } from "../../../lib/subscription-display.js";
 import { saveProviderApiKey } from "../../../lib/api";
@@ -1038,6 +1039,7 @@ function renderConfiguredProvider(id, data, title, mode, expanded, onToggle, bad
       toggleOnHeader={id === "zcode"}
     >
       <LimitWindowSection mode={mode} rows={rows} extra={extra} expanded={expanded} />
+      {id === "cursor" ? <GrokBillingSyncStatus /> : null}
       {id === "opencodeGo" || id === "commandCode" || id === "deepseek" ? (
         <EnvCredentialNotice providerId={id} data={data} onSaved={onKeySaved} />
       ) : null}
@@ -1074,6 +1076,7 @@ function renderUnlinkedProvider(id, statusNodes, expanded, onToggle, subscriptio
       headerAction={id === "cursor" ? <GrokXLoginButton /> : null}
     >
       {statusNodes}
+      {id === "cursor" ? <GrokBillingSyncStatus /> : null}
       {hasSubscription ? <SubscriptionBar subscription={subscription} now={now} mode={mode} /> : null}
       {hasSubscription && expanded ? (
         <div className="mt-1">

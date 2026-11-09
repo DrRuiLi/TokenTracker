@@ -926,5 +926,8 @@
   "trcc.grok.local_only": "請在本機 TokenTracker 應用程式中登入。",
   "trcc.grok.status_in": "已登入 grok.com",
   "trcc.grok.status_out": "尚未登入 grok.com",
-  "trcc.grok.status_unknown": "暫時讀不到 grok.com 的登入狀態"
+  "trcc.grok.status_unknown": "暫時讀不到 grok.com 的登入狀態",
+  "trcc.grok.billing_challenge": "grok.com 跳出了 Cloudflare 人機驗證，帳單同步已暫停（上次同步 {{time}}）。請點「X 登入」，等 Grok 頁面載入完成再關掉那個視窗。",
+  "trcc.grok.billing_failing": "帳單同步失敗（上次同步 {{time}}）：{{error}}",
+  "trcc.grok.billing_never": "從未"
 }

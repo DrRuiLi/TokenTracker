@@ -4,6 +4,7 @@ const path = require("node:path");
 
 const {
   GrokBillingError,
+  getGrokBillingRefreshState,
   openGrokLogin,
   resolveEdgeProfileDir,
 } = require("./grok-billing-export");
@@ -55,6 +56,7 @@ async function loginStatus(queuePath, { signedInProbe = grokComSignedIn } = {}) 
     refreshIntervalMinSeconds: MIN_GROK_BILLING_REFRESH_INTERVAL_SECONDS,
     refreshIntervalMaxSeconds: MAX_GROK_BILLING_REFRESH_INTERVAL_SECONDS,
     defaultRefreshIntervalSeconds: DEFAULT_GROK_BILLING_REFRESH_INTERVAL_SECONDS,
+    billing: getGrokBillingRefreshState(queuePath),
   };
 }
 

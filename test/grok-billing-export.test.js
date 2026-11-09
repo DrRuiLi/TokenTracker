@@ -5,7 +5,11 @@ const path = require("node:path");
 const { test } = require("node:test");
 const {
   billingDownloadArgs,
+  challengeVisitedSince,
   eventsFromCsvText,
+  getGrokBillingRefreshState,
+  recordRefreshFailure,
+  recordRefreshSuccess,
   isBillingDownloadCommand,
   isHeadlessCommand,
   mergeStore,
@@ -89,6 +93,63 @@ test("mergeStore dedupes by billing id", async (t) => {
   const saved = fs.readFileSync(storePath, "utf8");
   assert.equal(saved.includes("hidden@example.com"), false);
   assert.equal(saved.includes("secret"), false);
+});
+
+function writeHistory(profileDir, visits) {
+  const { DatabaseSync } = require("node:sqlite");
+  fs.mkdirSync(path.join(profileDir, "Default"), { recursive: true });
+  const db = new DatabaseSync(path.join(profileDir, "Default", "History"));
+  db.exec("CREATE TABLE urls (id INTEGER PRIMARY KEY, url TEXT, title TEXT)");
+  db.exec("CREATE TABLE visits (id INTEGER PRIMARY KEY, url INTEGER, visit_time INTEGER)");
+  const addUrl = db.prepare("INSERT INTO urls (url, title) VALUES (?, '')");
+  const addVisit = db.prepare("INSERT INTO visits (url, visit_time) VALUES (?, ?)");
+  for (const { url, atMs } of visits) {
+    const { lastInsertRowid } = addUrl.run(url);
+    addVisit.run(lastInsertRowid, BigInt(atMs + 11_644_473_600_000) * 1000n);
+  }
+  db.close();
+}
+
+test("challengeVisitedSince spots a Cloudflare challenge after the download started", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tt-grok-history-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const started = Date.parse("2026-11-09T05:57:14.000Z");
+  writeHistory(dir, [
+    { url: "https://grok.com/dashboard/usage?__cf_chl_tk=old", atMs: started - 60_000 },
+    { url: "https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?scope=user", atMs: started + 500 },
+  ]);
+  assert.equal(challengeVisitedSince(dir, started), false);
+
+  writeHistory(path.join(dir, "b"), [
+    {
+      url: "https://grok.com/dashboard/api/dashboard/v2/export-billing-items-csv?scope=user&__cf_chl_rt_tk=x",
+      atMs: started + 800,
+    },
+  ]);
+  assert.equal(challengeVisitedSince(path.join(dir, "b"), started), true);
+  assert.equal(challengeVisitedSince(path.join(dir, "missing"), started), false);
+});
+
+test("billing refresh state reports failing only after the last success", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tt-grok-state-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const queuePath = path.join(dir, "queue.jsonl");
+
+  recordRefreshSuccess(1_000);
+  assert.equal(getGrokBillingRefreshState(queuePath).failing, false);
+
+  const err = new Error("challenge");
+  err.code = "cloudflare-challenge";
+  recordRefreshFailure(err, 2_000);
+  const failing = getGrokBillingRefreshState(queuePath);
+  assert.equal(failing.failing, true);
+  assert.equal(failing.code, "cloudflare-challenge");
+  assert.equal(failing.lastSuccessAt, 1_000);
+
+  recordRefreshSuccess(3_000);
+  const healed = getGrokBillingRefreshState(queuePath);
+  assert.equal(healed.failing, false);
+  assert.equal(healed.code, null);
 });
 
 test("resolveGrokBillingPath sits beside the queue", () => {

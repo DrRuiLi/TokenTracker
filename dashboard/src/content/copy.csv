@@ -2248,6 +2248,9 @@ trcc.grok.local_only,ui,TrccPage,GrokLoginCard,grok_local_only,Sign-in is availa
 trcc.grok.status_in,ui,LimitsPage,CursorGrokLoginStatus,grok_status_in,Signed in to grok.com,,active
 trcc.grok.status_out,ui,LimitsPage,CursorGrokLoginStatus,grok_status_out,Not signed in to grok.com,,active
 trcc.grok.status_unknown,ui,LimitsPage,CursorGrokLoginStatus,grok_status_unknown,grok.com sign-in could not be read yet,,active
+trcc.grok.billing_challenge,ui,LimitsPage,GrokBillingSyncStatus,grok_billing_challenge,"grok.com is showing a Cloudflare check, so bill sync is paused (last synced {{time}}). Click X sign-in, wait for the Grok page to load, then close that window.",,active
+trcc.grok.billing_failing,ui,LimitsPage,GrokBillingSyncStatus,grok_billing_failing,"Bill sync is failing (last synced {{time}}): {{error}}",,active
+trcc.grok.billing_never,ui,LimitsPage,GrokBillingSyncStatus,grok_billing_never,never,,active
 trcc.grok.refresh_label,ui,LimitsPage,GrokXLoginButton,grok_refresh_label,Bill sync interval (minutes),,active
 trcc.grok.refresh_unit,ui,LimitsPage,GrokXLoginButton,grok_refresh_unit,min,,active
 trcc.grok.refresh_hint,ui,LimitsPage,GrokXLoginButton,grok_refresh_hint,"Bill sync every {{min}}–{{max}} minutes. Press Enter or leave the field to save.",,active

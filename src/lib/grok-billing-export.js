@@ -20,6 +20,14 @@ const EDGE =
     ? "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
     : null;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
+// Chromium stores visit_time as microseconds since 1601-01-01 UTC.
+const WEBKIT_EPOCH_OFFSET_MS = 11_644_473_600_000;
+// Cloudflare appends __cf_chl_* to the URL while its challenge page is shown,
+// so this matches regardless of the page language.
+const CHALLENGE_VISIT_SQL =
+  "SELECT 1 AS hit FROM visits v JOIN urls u ON u.id = v.url " +
+  "WHERE v.visit_time >= ? AND u.url LIKE 'https://grok.com/%' " +
+  "AND instr(u.url, '__cf_chl') > 0 LIMIT 1";
 
 class GrokBillingError extends Error {
   constructor(message) {
@@ -422,10 +430,45 @@ async function waitCsv(destDir, startedMs, timeoutMs) {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new GrokBillingError("专用 Edge 没有在限定时间内下完用量 CSV。请先在限额页完成 X 登录，并关掉那个窗口");
+  const error = new GrokBillingError("专用 Edge 没有在限定时间内下完用量 CSV。请先在限额页完成 X 登录，并关掉那个窗口");
+  error.code = "timeout";
+  throw error;
 }
 
-async function downloadCsv({ queuePath, startMs, endMs, timeoutMs = DOWNLOAD_TIMEOUT_MS } = {}) {
+function challengeVisitedSince(profileDir, sinceMs) {
+  const historyPath = path.join(profileDir, "Default", "History");
+  if (!fs.existsSync(historyPath)) return false;
+  const { DatabaseSync } = require("node:sqlite");
+  const { fileUrl } = require("./grok-login-status");
+  let db;
+  try {
+    db = new DatabaseSync(fileUrl(historyPath), { readOnly: true });
+  } catch {
+    db = new DatabaseSync(historyPath, { readOnly: true });
+  }
+  try {
+    const since = BigInt(Math.floor(sinceMs) + WEBKIT_EPOCH_OFFSET_MS) * 1000n;
+    return db.prepare(CHALLENGE_VISIT_SQL).all(since).length > 0;
+  } finally {
+    db.close();
+  }
+}
+
+function cloudflareChallengeError() {
+  const error = new GrokBillingError(
+    "grok.com 要求 Cloudflare 人机验证，专用 Edge 无法自动通过。请在限额页点「X 登录」，等 Grok 页面加载完再关掉窗口",
+  );
+  error.code = "cloudflare-challenge";
+  return error;
+}
+
+async function downloadCsv({
+  queuePath,
+  startMs,
+  endMs,
+  timeoutMs = DOWNLOAD_TIMEOUT_MS,
+  challengeSeen = challengeVisitedSince,
+} = {}) {
   if (process.platform !== "win32") {
     throw new GrokBillingError("X 订阅账单导出仅支持 Windows");
   }
@@ -465,29 +508,96 @@ async function downloadCsv({ queuePath, startMs, endMs, timeoutMs = DOWNLOAD_TIM
   const proc = spawnHidden(EDGE, billingDownloadArgs(profileDir, url));
   const hider = proc.pid ? startOffscreenWatch(proc.pid, profileDir) : null;
   try {
-    return await waitCsv(destDir, startedMs, timeoutMs);
-  } finally {
     try {
-      hider?.kill();
-    } catch {
-      /* ignore */
+      return await waitCsv(destDir, startedMs, timeoutMs);
+    } finally {
+      try {
+        hider?.kill();
+      } catch {
+        /* ignore */
+      }
+      try {
+        proc.kill();
+      } catch {
+        /* ignore */
+      }
+      await killBillingBrowsers(profileDir);
     }
-    try {
-      proc.kill();
-    } catch {
-      /* ignore */
+  } catch (error) {
+    if (error?.code === "timeout") {
+      let challenged = false;
+      try {
+        challenged = await challengeSeen(profileDir, startedMs);
+      } catch {
+        /* History unreadable: keep the timeout error */
+      }
+      if (challenged) throw cloudflareChallengeError();
     }
-    await killBillingBrowsers(profileDir);
+    throw error;
   }
 }
 
 let refreshJob = null;
+const refreshState = {
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  error: null,
+  code: null,
+};
+
+function recordRefreshSuccess(atMs = Date.now()) {
+  refreshState.lastSuccessAt = atMs;
+  refreshState.error = null;
+  refreshState.code = null;
+}
+
+function recordRefreshFailure(error, atMs = Date.now()) {
+  refreshState.lastFailureAt = atMs;
+  refreshState.error = error?.message || String(error);
+  refreshState.code = error?.code || null;
+}
+
+/**
+ * Last billing refresh outcome for the dashboard. Before the first successful
+ * refresh of this process, the store's mtime stands in as the last sync time.
+ */
+function getGrokBillingRefreshState(queuePath) {
+  let lastSuccessAt = refreshState.lastSuccessAt;
+  if (lastSuccessAt === null) {
+    try {
+      lastSuccessAt = fs.statSync(resolveGrokBillingPath(queuePath)).mtimeMs;
+    } catch {
+      lastSuccessAt = null;
+    }
+  }
+  const failing =
+    refreshState.lastFailureAt !== null &&
+    (lastSuccessAt === null || refreshState.lastFailureAt > lastSuccessAt);
+  return {
+    lastSuccessAt,
+    lastFailureAt: refreshState.lastFailureAt,
+    failing,
+    error: failing ? refreshState.error : null,
+    code: failing ? refreshState.code : null,
+  };
+}
 
 async function refreshGrokBillingExport({ queuePath, daysBack = 1, nowMs } = {}) {
   if (refreshJob) return refreshJob;
-  refreshJob = refreshGrokBillingOnce({ queuePath, daysBack, nowMs }).finally(() => {
-    refreshJob = null;
-  });
+  refreshJob = refreshGrokBillingOnce({ queuePath, daysBack, nowMs })
+    .then(
+      (changed) => {
+        if (changed !== null) recordRefreshSuccess();
+        return changed ?? 0;
+      },
+      (error) => {
+        recordRefreshFailure(error);
+        throw error;
+      },
+    )
+    .finally(() => {
+      refreshJob = null;
+    });
   return refreshJob;
 }
 
@@ -499,7 +609,7 @@ async function refreshGrokBillingOnce({ queuePath, daysBack = 1, nowMs } = {}) {
   try {
     csvPath = await downloadCsv({ queuePath, startMs, endMs });
   } catch (error) {
-    if (error && error.code === "login-window") return 0;
+    if (error && error.code === "login-window") return null;
     throw error;
   }
   try {
@@ -567,7 +677,11 @@ module.exports = {
   mergeStore,
   readStore,
   downloadCsv,
+  challengeVisitedSince,
   refreshGrokBillingExport,
+  getGrokBillingRefreshState,
+  recordRefreshSuccess,
+  recordRefreshFailure,
   migrateLegacyGrokBilling,
   openGrokLogin,
   isHeadlessCommand,

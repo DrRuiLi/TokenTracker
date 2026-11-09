@@ -49,6 +49,7 @@ async function grokComSignedIn(cookiesPath, { readPresent = readGrokHostPresent 
 }
 
 module.exports = {
+  fileUrl,
   GROK_HOST_SQL,
   grokComSignedIn,
   readGrokHostPresent,
