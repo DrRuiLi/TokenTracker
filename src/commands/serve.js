@@ -90,32 +90,9 @@ async function cmdServe(argv) {
   // the setup never commits cursors.json (#961).
   const { trackerDir, binDir } = await resolveTrackerPaths();
 
-  try {
-    const { installLocalTrackerApp, repairRuntimeIntegrations } = require("./init");
-    await installLocalTrackerApp({ appDir: path.join(trackerDir, "app") });
-    const repairResult = await repairRuntimeIntegrations({ trackerDir, binDir, safeMode: true });
-    for (const warning of repairResult?.warnings || []) {
-      process.stdout.write(
-        `Runtime integration repair warning (${warning.integration}): ${warning.error}\n`,
-      );
-    }
-  } catch (e) {
-    process.stdout.write(`Runtime refresh warning: ${e?.message || e}\n`);
-  }
-
-  // Optional sync for non-first-run launches. First-run init still owns its
-  // inline first sync below, after the listener is up.
+  // All runtime maintenance and initial sync run after listen. The dashboard
+  // is served from this package, not the hook runtime installed in trackerDir.
   const needsFirstRunSetup = !fssync.existsSync(path.join(trackerDir, "cursors.json"));
-  if (opts.sync && !needsFirstRunSetup) {
-    process.stdout.write("Syncing local data...\n");
-    try {
-      const { cmdSync } = require("./sync");
-      await cmdSync(["--auto"]);
-      process.stdout.write("Sync done.\n");
-    } catch (e) {
-      process.stdout.write(`Sync warning: ${e?.message || e}\n`);
-    }
-  }
 
   // Resolve paths
   const queuePath = resolveQueuePath();
@@ -247,30 +224,9 @@ async function cmdServe(argv) {
     }
   }
 
-  // First-time setup AFTER the listener is accepting health probes. Init still
-  // runs inline (including first sync) so the dashboard fills in, but native
-  // hosts can mark the server Running without racing that sync (#961).
-  if (needsFirstRunSetup) {
-    process.stdout.write("First time? Setting up Token Tracker...\n\n");
-    try {
-      const { cmdInit } = require("./init");
-      await cmdInit(["--yes"]);
-    } catch (e) {
-      process.stdout.write(`Init warning: ${e?.message || e}\n`);
-    }
-  }
-
-  await maybeShowStarCta({ trackerDir });
-
-  // The Windows desktop app keeps this server alive even when the dashboard
-  // window is closed. Provider hooks are the fast path, but they can be removed
-  // by a tool update or skipped by a provider. Scan every local source once a
-  // minute as a bounded fallback so the queue cannot remain stale indefinitely.
-  // `--no-sync` still skips the blocking startup sync; this periodic pass is
-  // Windows-only and uses the lightweight local mode (no cloud upload, Cursor
-  // network request, or deep Codex archive scan). The macOS app owns its own
-  // wake-aware refresh loop; running both loops made sync.lock nearly
-  // continuous and starved provider notify syncs.
+  // Side screen and X-subscription billing do not wait on the startup sync.
+  // That sync can run for a long time after the listener is up; the dashboard
+  // and the secondary display should already be available.
   const trccSidecar = startTrccSidecar({
     usageFile: path.join(path.dirname(queuePath), "merged-usage.jsonl"),
   });
@@ -298,6 +254,56 @@ async function cmdServe(argv) {
     platform: process.platform,
   });
 
+  // A large Windows runtime copy can take tens of seconds. Health probes and
+  // the dashboard must already work while maintenance is in progress.
+  try {
+    const { installLocalTrackerApp, repairRuntimeIntegrations } = require("./init");
+    await installLocalTrackerApp({ appDir: path.join(trackerDir, "app") });
+    const repairResult = await repairRuntimeIntegrations({ trackerDir, binDir, safeMode: true });
+    for (const warning of repairResult?.warnings || []) {
+      process.stdout.write(
+        `Runtime integration repair warning (${warning.integration}): ${warning.error}\n`,
+      );
+    }
+  } catch (e) {
+    process.stdout.write(`Runtime refresh warning: ${e?.message || e}\n`);
+  }
+
+  if (opts.sync && !needsFirstRunSetup) {
+    process.stdout.write("Syncing local data...\n");
+    try {
+      const { cmdSync } = require("./sync");
+      await cmdSync(["--auto"]);
+      process.stdout.write("Sync done.\n");
+    } catch (e) {
+      process.stdout.write(`Sync warning: ${e?.message || e}\n`);
+    }
+  }
+
+  // First-time setup AFTER the listener is accepting health probes. Init still
+  // runs inline (including first sync) so the dashboard fills in, but native
+  // hosts can mark the server Running without racing that sync (#961).
+  if (needsFirstRunSetup) {
+    process.stdout.write("First time? Setting up Token Tracker...\n\n");
+    try {
+      const { cmdInit } = require("./init");
+      await cmdInit(["--yes"]);
+    } catch (e) {
+      process.stdout.write(`Init warning: ${e?.message || e}\n`);
+    }
+  }
+
+  await maybeShowStarCta({ trackerDir });
+
+  // The Windows desktop app keeps this server alive even when the dashboard
+  // window is closed. Provider hooks are the fast path, but they can be removed
+  // by a tool update or skipped by a provider. Scan every local source once a
+  // minute as a bounded fallback so the queue cannot remain stale indefinitely.
+  // `--no-sync` still skips the blocking startup sync; this periodic pass is
+  // Windows-only and uses the lightweight local mode (no cloud upload, Cursor
+  // network request, or deep Codex archive scan). The macOS app owns its own
+  // wake-aware refresh loop; running both loops made sync.lock nearly
+  // continuous and starved provider notify syncs.
   const nativeBackgroundSync = startNativeBackgroundSync({
     onError: (e) =>
       process.stdout.write(`Background local sync warning: ${e?.message || e}\n`),
@@ -796,7 +802,7 @@ function parseArgs(argv, env = process.env) {
     port: envPort || defaultPort,
     portExplicit: Boolean(envPort),
     wslDefaultPort: !envPort && defaultPort === WSL_DEFAULT_PORT,
-    open: true,
+    open: !["macos", "windows", "linux"].includes(env.TOKENTRACKER_APP_SHELL),
     sync: true,
   };
   for (let i = 0; i < argv.length; i++) {

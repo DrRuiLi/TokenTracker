@@ -347,10 +347,10 @@ function computeRowCost(row) {
   if (row?.billing_included) return 0;
   if (hasUnknownBackendCost(row)) {
     // Existing totals without provenance retain their historical estimate. Only
-    // the newly ingested custom/unknown subset is excluded from model pricing.
+    // the custom-gateway subset is excluded from model pricing.
     const priced = { ...row, backend_usage: undefined };
     for (const part of row.backend_usage) {
-      if (part.backend === "anthropic") continue;
+      if (part.backend !== "custom") continue;
       for (const field of TOKEN_FIELDS) priced[field] = Math.max(0, (priced[field] || 0) - (part[field] || 0));
     }
     return computeRowCost(priced);

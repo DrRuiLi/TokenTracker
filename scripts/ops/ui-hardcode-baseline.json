@@ -6,8 +6,8 @@
     "rawText": "JSX text nodes containing letters or digits"
   },
   "totals": {
-    "colors": 404,
-    "rawText": 166
+    "colors": 406,
+    "rawText": 169
   },
   "files": {
     "dashboard/src/components/InsforgeUserHeaderControls.jsx": {
@@ -153,6 +153,11 @@
       "rawTextTokens": [
         ") : skill.directory && skill.directory !== title ? ("
       ]
+    },
+    "dashboard/src/pages/TrccPage.test.jsx": {
+      "colors": 2,
+      "rawText": 0,
+      "rawTextTokens": []
     },
     "dashboard/src/pages/SkillsPage.jsx": {
       "colors": 4,
@@ -308,6 +313,15 @@
         "0 || codexQueueFallback)) || (isCustomAgents && hasCustomAgents && subagentsSet); const rowOpen = Boolean(openRows[cat.key]); const bucketBase = bucketColor(cat.key, source); const colorSquare = (",
         "0; const clampedShare = hasFill ? Math.max(0, Math.min(100, share)) : 0; return (",
         "isExecToolName(t.name)); const catOpen = Boolean(openCats[cat.name]); return ("
+      ]
+    },
+    "dashboard/src/ui/dashboard/components/CursorGrokLoginStatus.jsx": {
+      "colors": 0,
+      "rawText": 3,
+      "rawTextTokens": [
+        "; if (!status) return fallback; if (status.uncertain) return",
+        "; if (status.signedIn) return",
+        "; return"
       ]
     },
     "dashboard/src/ui/dashboard/components/CostAnalysisModal.jsx": {
