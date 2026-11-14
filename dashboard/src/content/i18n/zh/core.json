@@ -987,5 +987,9 @@
   "trcc.grok.status_unknown": "暂时读不到 grok.com 的登录状态",
   "trcc.grok.billing_challenge": "grok.com 弹出了 Cloudflare 人机验证，账单同步已暂停（上次同步 {{time}}）。请点「X 登录」，等 Grok 页面加载完再关掉那个窗口。",
   "trcc.grok.billing_failing": "账单同步失败（上次同步 {{time}}）：{{error}}",
-  "trcc.grok.billing_never": "从未"
+  "trcc.grok.billing_never": "从未",
+  "trcc.grok.refresh_label": "账单同步间隔（分钟）",
+  "trcc.grok.refresh_unit": "分钟",
+  "trcc.grok.refresh_hint": "每 {{min}}–{{max}} 分钟同步一次账单。按 Enter 或离开输入框即可保存。",
+  "trcc.grok.refresh_invalid": "请输入允许范围内的分钟数。"
 }
