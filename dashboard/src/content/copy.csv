@@ -1282,8 +1282,6 @@ limits.provider.opencode_go,ui,LimitsPage,UsageLimitsPanel,provider_opencode_go,
 limits.label.opencode_go_5h,ui,LimitsPage,UsageLimitsPanel,opencode_go_5h,"5h",,active
 limits.label.opencode_go_weekly,ui,LimitsPage,UsageLimitsPanel,opencode_go_weekly,"Weekly",,active
 limits.label.opencode_go_monthly,ui,LimitsPage,UsageLimitsPanel,opencode_go_monthly,"Monthly",,active
-limits.provider.mimo,ui,LimitsPage,UsageLimitsPanel,provider_mimo,"Mimo",,active
-limits.label.mimo_token_plan,ui,LimitsPage,UsageLimitsPanel,mimo_token_plan,"Token Plan",,active
 limits.provider.qoder,ui,LimitsPage,UsageLimitsPanel,provider_qoder,"Qoder",,active
 limits.label.qoder_credits,ui,LimitsPage,UsageLimitsPanel,qoder_credits,"Credits",,active
 limits.label.qoder_addon_credits,ui,LimitsPage,UsageLimitsPanel,qoder_addon_credits,"Add-on Credits",,active

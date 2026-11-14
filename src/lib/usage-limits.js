@@ -37,7 +37,6 @@ const {
 } = require("./limits-cache");
 const { fetchZcodeLimits } = require("./zcode-limits");
 const { fetchOpencodeGoLimits } = require("./opencode-go-limits");
-const { fetchMimoLimits } = require("./mimo-limits");
 const { fetchCommandcodeLimits } = require("./commandcode-limits");
 const { fetchDevinLimits, resolveDevinCacheIdentity } = require("./devin-limits");
 const { fetchQoderLimits, fetchQoderCnLimits } = require("./qoder-limits");
@@ -4593,7 +4592,7 @@ async function fetchUsageLimitsUncached({
   // (#956).
   const hiddenSentinel = Promise.resolve({ configured: false });
   const hiddenSettled = Promise.resolve({ status: "fulfilled", value: { configured: false } });
-  const [claudeResult, codexResult, cursor, kimi, gemini, kiro, antigravity, copilot, grok, zcode, opencodeGoRaw, mimoRaw, qoder, qoderCn, codingPlan, agentPlan, commandCodeRaw, devinRaw, workbuddy, workbuddyAi, deepseek, claudeServiceStatus] = await Promise.all([
+  const [claudeResult, codexResult, cursor, kimi, gemini, kiro, antigravity, copilot, grok, zcode, opencodeGoRaw, qoder, qoderCn, codingPlan, agentPlan, commandCodeRaw, devinRaw, workbuddy, workbuddyAi, deepseek, claudeServiceStatus] = await Promise.all([
     claudeToken && !freshClaudeCache && !claudeRetryAtMs
       ? withProviderTimeout(fetchClaudeUsageLimits(claudeToken, { fetchImpl: providerFetch, maxAttempts: 1 }), "Claude", providerTimeoutMs).then(
           (value) => ({ status: "fulfilled", value }),
@@ -4646,11 +4645,6 @@ async function fetchUsageLimitsUncached({
     // scrape; local opencode.db cost is available only as an explicit estimate.
     // See src/lib/opencode-go-limits.js.
     hiddenSet.has("opencodeGo") ? hiddenSentinel : withProviderTimeout(fetchOpencodeGoLimits({ home, trackerDir, env, fetchImpl: providerFetch }), "OpenCode Go", providerTimeoutMs)
-      .catch((reason) => ({ configured: true, error: reason?.message || "Unknown error" })),
-    // Mimo Token Plan: no quota endpoint exists for API keys, so this is a
-    // local opencode.db token sum against the plan's monthly allowance.
-    // See src/lib/mimo-limits.js.
-    withProviderTimeout(fetchMimoLimits({ home, env, nowMs }), "Mimo", providerTimeoutMs)
       .catch((reason) => ({ configured: true, error: reason?.message || "Unknown error" })),
     hiddenSet.has("qoder") ? hiddenSentinel : withProviderTimeout(
       fetchQoderLimits({
@@ -5250,10 +5244,6 @@ async function fetchUsageLimitsUncached({
     grok: grokWithCache,
     zcode: withPlanLabel(zcode, zcode.plan_label, "ZCode"),
     opencodeGo: withPlanLabel(opencodeGo, opencodeGo?.plan_label, "OpenCode Go"),
-    // Mimo's plan label ("Token Plan") is set verbatim by the fetcher — the
-    // shared Title-Case pass would mangle regional variants — so pass the
-    // provider object through untouched like grok below.
-    mimo: mimoRaw,
     // CommandCode tiers are acronym brands (GOAT/Pro/Max) — the fetcher already
     // maps plan ids to the CLI's exact display strings, so skip the shared
     // Title-Case normalization ("Goat") and surface them as-is.
@@ -5400,7 +5390,6 @@ module.exports = {
   fetchGrokLimits,
   fetchZcodeLimits,
   fetchOpencodeGoLimits,
-  fetchMimoLimits,
   fetchCommandcodeLimits,
   fetchQoderLimits,
   fetchQoderCnLimits,

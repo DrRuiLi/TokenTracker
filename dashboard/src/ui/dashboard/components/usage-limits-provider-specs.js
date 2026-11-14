@@ -197,16 +197,6 @@ export const PROVIDER_LIMIT_SPECS = {
       ];
     },
   },
-  mimo: {
-    // Mimo Token Plan: one monthly token allowance, locally estimated from
-    // opencode.db (Xiaomi exposes no quota API for API keys). The reset date
-    // is calendar-derived, so no windowSeconds-based pacing projection.
-    windows(data) {
-      return [
-        { key: "plan", labelKey: "limits.label.mimo_token_plan", window: data.primary_window },
-      ];
-    },
-  },
   // Every Qoder fetch path (desktop RPC, CN CLI OpenAPI, cookie API, log
   // summary) already carries used/limit/remaining per window, so the inline
   // detail mirrors WorkBuddy's card. creditPrecision must be explicit: the
@@ -397,7 +387,6 @@ export function usageLimitsLabelCopyAnchor() {
     copy("limits.label.opencode_go_5h"),
     copy("limits.label.opencode_go_weekly"),
     copy("limits.label.opencode_go_monthly"),
-    copy("limits.label.mimo_token_plan"),
     copy("limits.label.qoder_credits"),
     copy("limits.label.qoder_ultimate"),
     copy("limits.label.qoder_cn_credits"),
