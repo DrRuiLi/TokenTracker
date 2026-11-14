@@ -46,6 +46,7 @@ const SOURCE_IDENTICAL_KEY_ALLOWLIST = [
   /^leaderboard[.]pro[.]badge$/,
   /^cloud[.](?:nav|page[.]eyebrow|(?:plan|membership)[.]title)$/,
   /^pet[.]character[.](?:clawd|bot|sprout|byte|ember)$/,
+  /^trcc[.]status[.]connected$/, // Handshake line: PM/SUB, pixel size, fps.
 ];
 
 // Developer-facing product terms stay in English in Chinese UI copy. Scope
