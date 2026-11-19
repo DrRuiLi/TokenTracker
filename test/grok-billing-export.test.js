@@ -27,6 +27,11 @@ test("billing download uses a real off-screen Edge, not headless mode", () => {
   const args = billingDownloadArgs("C:\\profile", "https://grok.com/dashboard/api/export");
   assert.equal(args.some((arg) => arg.includes("--headless")), false);
   assert.ok(args.includes("--window-position=-32000,-32000"));
+  // Display-off / occluded windows must not freeze the short CSV fetch.
+  assert.ok(args.includes("--disable-backgrounding-occluded-windows"));
+  assert.ok(args.includes("--disable-renderer-backgrounding"));
+  assert.ok(args.includes("--disable-background-timer-throttling"));
+  assert.ok(args.includes("--disable-features=CalculateNativeWinOcclusion"));
   assert.equal(isBillingDownloadCommand(args.join(" ")), true);
   assert.equal(
     isBillingDownloadCommand("msedge.exe --user-data-dir=C:\\p https://grok.com/dashboard/usage"),

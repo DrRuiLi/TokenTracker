@@ -300,7 +300,23 @@ async function ensureMergedUsage({ queuePath, billingPath, mergedPath } = {}) {
     if (current !== payload) {
       const tmp = `${merged}.tmp`;
       await fsp.writeFile(tmp, payload, "utf8");
-      await fsp.rename(tmp, merged);
+      // Windows can return EPERM when the side-screen (or AV) still has the
+      // previous merged file open. Retry the replace a few times.
+      let lastErr = null;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          await fsp.rename(tmp, merged);
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (!err || (err.code !== "EPERM" && err.code !== "EACCES" && err.code !== "EBUSY")) {
+            throw err;
+          }
+          await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+        }
+      }
+      if (lastErr) throw lastErr;
     }
     writeMeta(merged, inputs);
     return merged;

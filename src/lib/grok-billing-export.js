@@ -290,6 +290,14 @@ function billingDownloadArgs(profileDir, url) {
     "--disable-notifications",
     "--disable-session-crashed-bubble",
     "--hide-crash-restore-bubble",
+    // Off-screen + SW_HIDE looks "occluded" to Chromium. With the display off,
+    // Windows native occlusion freezes that window so the CSV never lands.
+    // Keep the page alive for the short download window (see chrome-launcher
+    // docs/chrome-flags-for-tools.md).
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    "--disable-features=CalculateNativeWinOcclusion",
     "--window-position=-32000,-32000",
     "--window-size=200,200",
     url,
@@ -368,13 +376,16 @@ function startOffscreenWatch(rootPid, profileDir) {
     "  $script:hidePids = New-Object 'System.Collections.Generic.HashSet[uint32]'",
     "  [void]$script:hidePids.Add([uint32]$root)",
     "  Get-CimInstance Win32_Process -Filter \"name='msedge.exe'\" | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($marker) } | ForEach-Object { [void]$script:hidePids.Add([uint32]$_.ProcessId) }",
+    // Prefer SW_SHOWNOACTIVATE (4) over SW_HIDE (0): hiding the HWND marks the
+    // page occluded even with anti-throttle flags, and Windows display-off then
+    // freezes the CSV download. Style bits still strip the taskbar button.
     "  $cb = [TT.WinHide+EnumProc]{ param($hwnd, $lp)",
     "    $procId = [uint32]0",
     "    [void][TT.WinHide]::GetWindowThreadProcessId($hwnd, [ref]$procId)",
     "    if ($script:hidePids.Contains($procId)) {",
     "      $style = [TT.WinHide]::GetWindowLong($hwnd, -20)",
     "      [void][TT.WinHide]::SetWindowLong($hwnd, -20, ($style -bor 128) -band (-bnot 262144))",
-    "      [void][TT.WinHide]::ShowWindow($hwnd, 0)",
+    "      [void][TT.WinHide]::ShowWindow($hwnd, 4)",
     "    }",
     "    return $true",
     "  }",
