@@ -6,10 +6,19 @@ namespace TokenTrackerWin.TrccFork.MetricsBar;
 internal sealed class MetricsBarPoller : IDisposable
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
+    private static readonly (string Alias, string Key)[] ApiAliases =
+    [
+        ("temp_c", "temp"),
+        ("power_w", "power"),
+        ("up_bps", "up"),
+        ("dl_bps", "dl"),
+    ];
+
     private readonly System.Windows.Forms.Timer _timer = new();
     private readonly MetricsBarFallbackSampler _fallback = new();
     private MetricsBarSettings _settings = new();
     private Dictionary<string, double?> _values = new(StringComparer.Ordinal);
+    private int _polling;
     public event Action? Updated;
 
     public MetricsBarPoller()
@@ -37,45 +46,77 @@ internal sealed class MetricsBarPoller : IDisposable
 
     private async Task PollAsync()
     {
-        var port = _settings.TrccPort;
-        if (port > 0)
+        if (Interlocked.Exchange(ref _polling, 1) == 1) return;
+        try
         {
-            try
+            var port = _settings.TrccPort;
+            if (port > 0)
             {
-                var url = $"http://127.0.0.1:{port}/api/metrics";
-                var json = await Http.GetStringAsync(url).ConfigureAwait(false);
-                var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("metrics", out var metrics))
+                try
                 {
-                    var parsed = ParseMetrics(metrics);
-                    _values = parsed;
-                    Updated?.Invoke();
-                    return;
+                    var url = $"http://127.0.0.1:{port}/api/metrics";
+                    var json = await Http.GetStringAsync(url).ConfigureAwait(false);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("metrics", out var metrics))
+                    {
+                        Publish(ParseMetrics(metrics));
+                        return;
+                    }
                 }
+                catch { /* fall through */ }
             }
-            catch { /* fall through */ }
-        }
 
-        _values = _fallback.Sample().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+            Publish(_fallback.Sample().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal));
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _polling, 0);
+        }
+    }
+
+    private void Publish(Dictionary<string, double?> next)
+    {
+        if (NearlySame(_values, next)) return;
+        _values = next;
         Updated?.Invoke();
+    }
+
+    private static bool NearlySame(Dictionary<string, double?> current, Dictionary<string, double?> next)
+    {
+        if (current.Count != next.Count) return false;
+        foreach (var kv in next)
+        {
+            if (!current.TryGetValue(kv.Key, out var old)) return false;
+            if (old is null || kv.Value is null)
+            {
+                if (old is not null || kv.Value is not null) return false;
+                continue;
+            }
+            if (Math.Abs(old.Value - kv.Value.Value) > 0.05) return false;
+        }
+        return true;
     }
 
     private static Dictionary<string, double?> ParseMetrics(JsonElement metrics)
     {
         var dict = new Dictionary<string, double?>(StringComparer.Ordinal);
         foreach (var key in MetricsBarSettings.AllColumns)
+            dict[key] = ReadNumber(metrics, key);
+
+        // trcc/sysmetrics.py publishes temp_c, power_w, up_bps, dl_bps.
+        foreach (var (alias, key) in ApiAliases)
         {
-            if (!metrics.TryGetProperty(key, out var el) || el.ValueKind == JsonValueKind.Null)
-            {
-                dict[key] = null;
-                continue;
-            }
-            dict[key] = el.ValueKind switch
-            {
-                JsonValueKind.Number => el.GetDouble(),
-                _ => null,
-            };
+            if (dict[key] is not null) continue;
+            var value = ReadNumber(metrics, alias);
+            if (value is not null) dict[key] = value;
         }
         return dict;
+    }
+
+    private static double? ReadNumber(JsonElement metrics, string key)
+    {
+        if (!metrics.TryGetProperty(key, out var el) || el.ValueKind != JsonValueKind.Number)
+            return null;
+        return el.TryGetDouble(out var n) ? n : null;
     }
 }

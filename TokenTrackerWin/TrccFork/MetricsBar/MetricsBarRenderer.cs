@@ -7,16 +7,37 @@ internal readonly record struct MetricsColumn(string Key, string Label, string V
 
 internal static class MetricsBarRenderer
 {
-    public static int MeasureWidth(IReadOnlyList<MetricsColumn> cols, Font labelFont, Font valueFont, int pad)
+    public static void RenderTaskbar(Graphics g, Rectangle bounds, Color chromaKey,
+        MetricsTaskbarLayout layout, bool lightTaskbar)
     {
-        int w = pad * 2;
-        foreach (var col in cols)
+        g.Clear(chromaKey);
+        if (layout.Columns.Count == 0 || bounds.Width <= 0 || bounds.Height <= 0) return;
+
+        MetricsTaskbarPalette.ConfigureGraphics(g);
+        var font = MetricsTaskbarPalette.CachedFont(layout.FontPt <= 0 ? 9f : layout.FontPt);
+        var labelColor = MetricsTaskbarPalette.LabelColor(lightTaskbar);
+        const TextFormatFlags fmt = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+
+        foreach (var col in layout.Columns)
         {
-            var labelSize = TextRenderer.MeasureText(col.Label, labelFont);
-            var valueSize = TextRenderer.MeasureText(col.Value, valueFont);
-            w += Math.Max(labelSize.Width + 8, 72) + valueSize.Width + 24;
+            DrawCell(g, col.Top, font, labelColor, lightTaskbar, fmt);
+            DrawCell(g, col.Bottom, font, labelColor, lightTaskbar, fmt);
         }
-        return Math.Min(w, (Screen.PrimaryScreen?.WorkingArea.Width ?? 1200) - 40);
+    }
+
+    private static void DrawCell(Graphics g, MetricsTaskbarLayout.Cell? cell, Font font,
+        Color labelColor, bool light, TextFormatFlags fmt)
+    {
+        if (cell is null || cell.Bounds == Rectangle.Empty) return;
+        var rc = cell.Bounds;
+        var valueColor = cell.Value == "—"
+            ? labelColor
+            : MetricsTaskbarPalette.ValueColor(cell.ColorState, light);
+
+        TextRenderer.DrawText(g, cell.Label, font, rc, labelColor,
+            fmt | TextFormatFlags.Left);
+        TextRenderer.DrawText(g, cell.Value, font, rc, valueColor,
+            fmt | TextFormatFlags.Right);
     }
 
     public static void Render(Graphics g, Rectangle bounds, MetricsBarSettings theme,
@@ -67,7 +88,7 @@ internal static class MetricsBarRenderer
 
     private static string LabelFor(string key, bool english) => key switch
     {
-        "cpu" => english ? "CPU" : "CPU",
+        "cpu" => "CPU",
         "mem" => english ? "MEM" : "内存",
         "temp" => english ? "TEMP" : "温度",
         "power" => english ? "PWR" : "功耗",
