@@ -173,6 +173,35 @@
       "cache_write": 0.125,
       "note": "Dotted alias for claude-haiku-5-5. Same short-context rates."
     },
+    "gpt-6.2-astra-law": {
+      "input": 8,
+      "output": 40,
+      "cache_read": 0.4,
+      "cache_write": 10,
+      "note": "Official specialist Legal model configuration Standard USD/MTok, verified 2026-11-18 at https://developers.openai.com/api/docs/pricing#legal-model-configurations. Short 8/0.4/10/40 input/cache-read/30m-write/output; long 16/0.8/20/60. 12h write20 short/40 long is not distinguishable in current rows. No Fast/Ultrafast price is published for this specialist ID; do not inherit general Astra promotion multipliers."
+    },
+    "gpt-6.2-astra": {
+      "input": 8,
+      "output": 40,
+      "cache_read": 0.4,
+      "cache_write": 10,
+      "priority_multiplier": 2,
+      "ultrafast_multiplier": 3,
+      "ultrafast_regular_multiplier": 6,
+      "ultrafast_promotion_ends_at": "2027-03-01T08:00:00Z",
+      "note": "Official Standard USD/MTok, verified 2026-11-18: https://developers.openai.com/api/docs/models/gpt-6.2-astra.md and https://developers.openai.com/api/docs/pricing. Cache write is 30m (12h costs $20/MTok and retention is not recorded). Input above 272K: 2x input/cache, 1.5x output, observed subsets only. Fast 2x; Ultrafast 3x through February 28 2027 Pacific, then 6x from March 1 Pacific. Only the published bare model ID is confirmed; reasoning/provider decorations are lookup aliases, not separate API SKUs. Cloud aggregates remain Standard short-context estimates; Batch and 12h retention cannot be distinguished by current usage rows."
+    },
+    "gpt-6.2-sol": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "priority_multiplier": 2,
+      "ultrafast_multiplier": 3,
+      "ultrafast_regular_multiplier": 6,
+      "ultrafast_promotion_ends_at": "2027-03-01T08:00:00Z",
+      "note": "Official Standard USD/MTok, verified 2026-11-18: https://developers.openai.com/api/docs/models/gpt-6.2-sol.md and https://developers.openai.com/api/docs/pricing. Cache write is 30m (12h costs $5.0/MTok and retention is not recorded). Input above 272K: 2x input/cache, 1.5x output, observed subsets only. Fast 2x; Ultrafast 3x through February 28 2027 Pacific, then 6x from March 1 Pacific. Only the published bare model ID is confirmed; reasoning/provider decorations are lookup aliases, not separate API SKUs. Cloud aggregates remain Standard short-context estimates; Batch and 12h retention cannot be distinguished by current usage rows."
+    },
     "gpt-6-astra": {
       "input": 10,
       "output": 50,
@@ -377,6 +406,27 @@
       "cache_read": 0.1,
       "cache_write": 0,
       "note": "Google Gemini 4 Argon introductory list rate (through 2026-11-30) matching Cursor Other Models pool: $2/M input, $0.10/M cached input, $10/M output. Effort suffixes (-high/-medium/-low/-minimal) are stripped by normalizeCursorModel. Sources: https://cursor.com/docs/models-and-pricing and https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    "gemini-4-carbon": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1,
+      "cache_write": 0,
+      "note": "Cursor/Google introductory Standard rates through 2026-11-30, verified 2026-11-16: https://cursor.com/docs/models/gemini-4-carbon . From 2026-12-01 the published rate becomes $4/$20/$0.20 per MTok input/output/cache read. Reasoning effort does not change the per-token rate."
+    },
+    "gemini-4-hydrogen": {
+      "input": 1.5,
+      "output": 7.5,
+      "cache_read": 0.075,
+      "cache_write": 0,
+      "note": "Cursor/Google Standard list rates, verified 2026-11-16: https://cursor.com/docs/models/gemini-4-hydrogen . $1.50/$7.50/$0.075 per MTok input/output/cache read; no separate cache-write charge."
+    },
+    "muse-wonder-1.0": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2,
+      "cache_write": 0,
+      "note": "Cursor/Meta Standard list rates, verified 2026-11-16: https://cursor.com/docs/models/muse-wonder and https://dev.meta.ai/models/muse-wonder . All six effort levels, including max, use the same per-token rate; Max Mode has no long-context premium. Muse Wonder Full is a separate subscription model."
     },
     "gemini-3-flash-preview": {
       "input": 0.5,

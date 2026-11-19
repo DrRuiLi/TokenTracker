@@ -223,6 +223,11 @@ const MODEL_PRICING: Record<string, { input: number; output: number; cache_read:
   // https://developers.openai.com/api/docs/models/gpt-6-astra
   // Cloud buckets do not retain per-request context/service tier. Use the
   // standard short-context estimate; never infer long context from totals.
+  // Official GPT-6.2 Standard short-context USD/MTok, verified 2026-11-18:
+  // https://developers.openai.com/api/docs/pricing (cloud has no request tier/retention).
+  "gpt-6.2-astra-law": { input: 8, output: 40, cache_read: 0.4, cache_write: 10 },
+  "gpt-6.2-astra": { input: 8, output: 40, cache_read: 0.4, cache_write: 10 },
+  "gpt-6.2-sol": { input: 2, output: 10, cache_read: 0.1, cache_write: 2.5 },
   "gpt-6-astra": { input: 10, output: 50, cache_read: 1, cache_write: 12.5 },
   // GPT-6 Sol Standard USD/MTok, verified 2026-09-24:
   // https://developers.openai.com/api/docs/models/gpt-6-sol
@@ -265,6 +270,9 @@ const MODEL_PRICING: Record<string, { input: number; output: number; cache_read:
   "composer-2.5-fast": { input: 3, output: 15, cache_read: 0.5 },
   // Google Gemini 4 Argon (Cursor Other Models / Google introductory list rate)
   "gemini-4-argon": { input: 2, output: 10, cache_read: 0.1, cache_write: 0 },
+  "gemini-4-carbon": { input: 2, output: 10, cache_read: 0.1, cache_write: 0 },
+  "gemini-4-hydrogen": { input: 1.5, output: 7.5, cache_read: 0.075, cache_write: 0 },
+  "muse-wonder-1.0": { input: 4, output: 20, cache_read: 0.2, cache_write: 0 },
   // ── Moonshot Kimi ──
   "kimi-for-coding": { input: 0.6, output: 2, cache_read: 0.15 },
   "kimi-k2.5": { input: 0.6, output: 2, cache_read: 0.15 },
@@ -507,6 +515,12 @@ function getModelPricing(model: string, source = "") {
   // reports its own positive cost still wins earlier via
   // SOURCES_WITH_AUTHORITATIVE_COST.
   if (lower.includes("cline-free/") || lower.includes("cline-pass/")) return ZERO_PRICING;
+  // Do not guess prices for unannounced GPT-6.2 SKUs or dated snapshots.
+  const gpt62 = lower.trim().match(/gpt-6[.-]2(?:-(.*))?$/);
+  if (gpt62) {
+    const known = /^(astra-law|astra|sol)(?:-?(?:low|medium|high|xhigh|max)(?:-fast)?|-fast)?$/.exec(gpt62[1] || "");
+    return known ? MODEL_PRICING[`gpt-6.2-${known[1]}`] : ZERO_PRICING;
+  }
   // Fable 5.2 before the broad fable matcher, or claude-fable-5-2 bills at the
   // Fable 5 $10/$50 rate. Fast before 5.2 (the "fable-5.2" needle is a prefix
   // of "fable-5.2-fast"), and -latest never matches: it is a floating alias
@@ -552,8 +566,12 @@ function getModelPricing(model: string, source = "") {
   if (lower.includes("gpt-5.1-codex-mini")) return MODEL_PRICING["gpt-5.1-codex-mini"];
   if (lower.includes("gpt-5.1")) return MODEL_PRICING["gpt-5.1-codex"];
   if (lower.includes("gpt-5")) return MODEL_PRICING["gpt-5"];
-  // gemini-4-argon must precede gemini-3 / gemini-2.5 substring matchers.
+  // Standard Gemini 4 SKUs and their effort levels; other variants have
+  // independent prices, including Carbon Cyber Permissive.
   if (lower.includes("gemini-4-argon") || lower.includes("gemini-4.argon")) return MODEL_PRICING["gemini-4-argon"];
+  const gemini4 = lower.trim().match(/(?:^|\/)gemini-4[.-](carbon|hydrogen)(?:-(?:minimal|low|medium|high|xhigh))?$/);
+  if (gemini4) return MODEL_PRICING[`gemini-4-${gemini4[1]}`];
+  if (/(?:^|\/)muse-wonder-1[.-]0(?:-(?:minimal|low|medium|high|xhigh|extra-high|max))?$/.test(lower)) return MODEL_PRICING["muse-wonder-1.0"];
   // Gemini 3.8/3.7/3.6 Flash introductory Standard rates must precede the
   // gemini-3 catch-all (which bills at gemini-3-flash-preview). Alternate
   // SKUs (cyber, tts, lite, image, live) have different published rates.

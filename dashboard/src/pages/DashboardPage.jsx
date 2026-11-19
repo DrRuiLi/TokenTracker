@@ -141,6 +141,7 @@ export function DashboardPage({
   signInUrl = "/sign-in",
   signUpUrl = "/sign-up",
   onMainContentVisible,
+  cloudNotice,
 }) {
   const { resolvedLocale } = useLocale();
   const { currency, rate } = useCurrency();
@@ -1424,6 +1425,7 @@ export function DashboardPage({
   return (
     <>
     <DashboardView
+      cloudNotice={cloudNotice}
       copy={copy}
       accountView={accountView}
       accountScopeSwitchable={accountScopeSwitchable}
