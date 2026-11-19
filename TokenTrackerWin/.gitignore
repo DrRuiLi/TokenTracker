@@ -7,5 +7,6 @@ EmbeddedServer/
 
 # Release packaging output (produced by dotnet publish + the release-windows workflow)
 publish/
+publish-dev/
 *.zip
 installer/Output/
