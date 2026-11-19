@@ -455,6 +455,8 @@ class App:
                 if bool(c.payload) != self.worker.pushing:
                     self.toggle_push()
                 c.finish({"pushing": self.worker.pushing})
+            elif c.cmd == "get_metrics":
+                c.finish(self.worker.metrics_snapshot())
             elif c.cmd == "get_settings":
                 c.finish(self._settings_view())
             elif c.cmd == "set_settings":

@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 from urllib.parse import urlsplit
 
+from metrics_api import register_metrics_routes
 from sysmetrics import SOURCE_LABELS
 
 log = logging.getLogger(__name__)
@@ -242,6 +243,8 @@ _ROUTES = {
     ("POST", "/api/window/show"): _Handler.r_show,
     ("POST", "/api/admin/relaunch"): _Handler.r_relaunch_admin,
 }
+
+register_metrics_routes(_ROUTES)
 
 
 class ControlServer:

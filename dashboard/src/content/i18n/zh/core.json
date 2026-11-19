@@ -991,5 +991,19 @@
   "trcc.grok.refresh_label": "账单同步间隔（分钟）",
   "trcc.grok.refresh_unit": "分钟",
   "trcc.grok.refresh_hint": "每 {{min}}–{{max}} 分钟同步一次账单。按 Enter 或离开输入框即可保存。",
-  "trcc.grok.refresh_invalid": "请输入允许范围内的分钟数。"
+  "trcc.grok.refresh_invalid": "请输入允许范围内的分钟数。",
+  "metrics_bar.section.title": "任务栏硬件横条",
+  "metrics_bar.section.hint": "贴在主显示器任务栏旁的 WinForms 横条；优先从副屏 sidecar 读取指标。",
+  "metrics_bar.native_only": "仅在 Windows 托盘版可用。",
+  "metrics_bar.enabled": "显示任务栏横条",
+  "metrics_bar.enabled.hint": "也可在托盘菜单中开关。",
+  "metrics_bar.refresh": "刷新间隔",
+  "metrics_bar.opacity": "透明度",
+  "metrics_bar.columns": "显示项",
+  "metrics_bar.col.cpu": "CPU",
+  "metrics_bar.col.mem": "内存",
+  "metrics_bar.col.temp": "CPU 温度",
+  "metrics_bar.col.power": "CPU 功耗",
+  "metrics_bar.col.up": "上传",
+  "metrics_bar.col.dl": "下载"
 }

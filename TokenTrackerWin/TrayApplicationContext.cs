@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json.Nodes;
 using Microsoft.Win32;
+using TokenTrackerWin.TrccFork.MetricsBar;
 
 namespace TokenTrackerWin;
 
@@ -25,6 +26,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private PetWindow? _petWindow;
     private QuotaWidgetWindow? _quotaWindow;
     private readonly ToolStripMenuItem _quotaItem;
+
+    #region TRCC fork: metrics bar
+    private MetricsBarHost? _metricsBarHost;
+    #endregion
 
     private readonly ContextMenuStrip _menu;
     private readonly TrayMenuRenderer _menuRenderer;
@@ -201,6 +206,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _menu.Items.Add(CreateSeparator());
         _menu.Items.Add(_quitItem);
         ApplyLocaleToMenu();
+        #region TRCC fork: metrics bar
+        _metricsBarHost = MetricsBarHost.Attach(_menu, PostToUi, MenuEnglish());
+        #endregion
         _menu.Opened += (_, _) => TrayMenuRenderer.ApplyRoundedRegion(_menu);
         _menu.SizeChanged += (_, _) => TrayMenuRenderer.ApplyRoundedRegion(_menu);
 
@@ -357,6 +365,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _openDashboardItem.Text = _strings.OpenDashboard;
         _syncItem.Text = _strings.SyncNow;
         _quotaItem.Text = _strings.DesktopQuota;
+        _metricsBarHost?.SetEnglish(MenuEnglish());
         _quotaWindow?.ApplyLocale(NativeLocalization.ResolveLocale(_localePreference));
         UpdatePetMenuText();
         _petSizeItem.Text = _strings.PetSize;
@@ -678,7 +687,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _dashboard.NativeActionRequested += name => PostToUi(() => RunDashboardNativeAction(name));
         _dashboard.NotificationRequested += (title, body) => PostToUi(() =>
             _trayIcon.ShowBalloonTip(7000, title, body, ToolTipIcon.Warning));
+        #region TRCC fork: metrics bar
+        _dashboard.MetricsBarSettingsRequested += () => PostToUi(PushMetricsBarSettingsToDashboard);
+        _dashboard.MetricsBarSettingsReceived += json => PostToUi(() => _metricsBarHost?.ApplySettingsJson(json));
+        #endregion
     }
+
+    private void PushMetricsBarSettingsToDashboard()
+    {
+        var json = _metricsBarHost?.ReadSettingsJson();
+        if (json is not null) _dashboard?.PushMetricsBarSettings(json);
+    }
+
+    private bool MenuEnglish() =>
+        !NativeLocalization.ResolveLocale(_localePreference).StartsWith("zh", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Recreate the visible dashboard WebView after a narrowly classified
@@ -1182,6 +1204,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void Quit()
     {
+        #region TRCC fork: metrics bar
+        _metricsBarHost?.Shutdown();
+        #endregion
         _quotaWindow?.Shutdown();
         _refreshTimer.Stop();
         _syncTimer.Stop();
@@ -1209,6 +1234,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _dashboard?.Shutdown();   // WPF Window has no Dispose; really close it
             _petWindow?.Shutdown();
             _quotaWindow?.Shutdown();
+            _metricsBarHost?.Dispose();
         }
         base.Dispose(disposing);
     }

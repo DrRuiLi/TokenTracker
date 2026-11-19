@@ -298,6 +298,14 @@ class _FakeWorker:
         return {"connected": True, "size": (960, 320), "pushing": True,
                 "sensor_source": "lhm", "sensor_embedded": "运行中", "admin": True}
 
+    def metrics_snapshot(self):
+        return {
+            "metrics": {"cpu": 12.5, "mem": 44.0, "up_bps": 1024, "dl_bps": 2048,
+                        "temp_c": 55.0, "power_w": 42.0},
+            "sensor": {"sensor_source": "lhm", "sensor_embedded": "运行中", "admin": True},
+            "ts": 1.0,
+        }
+
     def refresh_cursor(self):
         self.refreshed += 1
 
@@ -309,6 +317,8 @@ class _FakeBridge:
 
     def call(self, cmd, payload=None, timeout=3.0):
         self.calls.append((cmd, payload))
+        if cmd == "get_metrics":
+            return self.worker.metrics_snapshot()
         if cmd == "set_settings" and payload.get("rotation") == 45:
             raise ValueError("rotation must be one of 0/90/180/270")
         return {"settings": {"rotation": 0}, "app": {}, "meta": {}}
@@ -367,6 +377,12 @@ def test_control_api_http():
         assert req("POST", "/api/push", {"on": False})[0] == 200
         assert bridge.calls[-1] == ("push", False)
         assert req("POST", "/api/cursor/refresh", {})[0] == 200 and bridge.worker.refreshed == 1
+        st, _, body = req("GET", "/api/metrics", headers={"Origin": "http://127.0.0.1:17680"})
+        assert st == 200
+        metrics = _json.loads(body)
+        assert metrics["metrics"]["cpu"] == 12.5
+        assert metrics["sensor"]["sensor_source"] == "lhm"
+
         assert req("GET", "/api/nope")[0] == 404
         assert req("GET", "/api/settings")[0] == 405
     finally:

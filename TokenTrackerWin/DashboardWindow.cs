@@ -79,6 +79,11 @@ internal sealed class DashboardWindow : Window
     /// <summary>Raised when the dashboard invokes a native action.</summary>
     public event Action<string>? NativeActionRequested;
     public event Action<string, string>? NotificationRequested;
+
+    #region TRCC fork: metrics bar
+    public event Action? MetricsBarSettingsRequested;
+    public event Action<string>? MetricsBarSettingsReceived;
+    #endregion
     public DashboardWindow(ServerManager server)
     {
         _server = server;
@@ -610,6 +615,17 @@ internal sealed class DashboardWindow : Window
                         if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(body))
                             NotificationRequested?.Invoke(title[..Math.Min(title.Length, 120)], body[..Math.Min(body.Length, 500)]);
                     }
+                    #region TRCC fork: metrics bar
+                    else if (t.GetString() == "metrics_bar_get")
+                    {
+                        MetricsBarSettingsRequested?.Invoke();
+                    }
+                    else if (t.GetString() == "metrics_bar_settings"
+                             && doc.RootElement.TryGetProperty("settings", out var mbSettings))
+                    {
+                        MetricsBarSettingsReceived?.Invoke(mbSettings.GetRawText());
+                    }
+                    #endregion
                 }
                 catch { /* not a JSON message we handle */ }
                 return;
@@ -691,6 +707,20 @@ internal sealed class DashboardWindow : Window
         }
         catch { /* page is navigating */ }
     }
+
+    #region TRCC fork: metrics bar
+    public void PushMetricsBarSettings(string settingsJson)
+    {
+        if (!_coreReady || string.IsNullOrWhiteSpace(settingsJson)) return;
+        try
+        {
+            _ = _webView.CoreWebView2.ExecuteScriptAsync(
+                "window.dispatchEvent(new CustomEvent('tokentracker:metrics-bar-settings',{detail:"
+                + settingsJson + "}));");
+        }
+        catch { /* page is navigating */ }
+    }
+    #endregion
 
     private void OnServerStatusChanged(ServerManager.ServerStatus status)
     {

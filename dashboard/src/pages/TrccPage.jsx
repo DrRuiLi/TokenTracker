@@ -21,6 +21,7 @@ import { Button } from "../ui/components/Button.jsx";
 import { Card } from "../ui/components/Card.jsx";
 import { ConfirmModal } from "../ui/components/ConfirmModal.jsx";
 import { showToast } from "../ui/components/Toast.jsx";
+import { MetricsBarSection } from "./trcc/MetricsBarSection.jsx";
 
 const POLL_MS = 1000;
 const COLOR_DEBOUNCE_MS = 200;
@@ -296,6 +297,8 @@ export function TrccPage() {
           ) : null}
 
           {!loading && !online ? <OfflineCard port={port} onRetry={changePort} /> : null}
+
+          <MetricsBarSection trccPort={port} />
 
           {online ? (
             <div className="flex flex-col gap-6">

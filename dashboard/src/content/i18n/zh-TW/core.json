@@ -932,5 +932,19 @@
   "trcc.grok.refresh_label": "帳單同步間隔（分鐘）",
   "trcc.grok.refresh_unit": "分鐘",
   "trcc.grok.refresh_hint": "每 {{min}}–{{max}} 分鐘同步一次帳單。按 Enter 或離開輸入框即可儲存。",
-  "trcc.grok.refresh_invalid": "請輸入允許範圍內的分鐘數。"
+  "trcc.grok.refresh_invalid": "請輸入允許範圍內的分鐘數。",
+  "metrics_bar.section.title": "工作列硬體橫條",
+  "metrics_bar.section.hint": "貼在主螢幕工作列旁的 WinForms 橫條；優先從副屏 sidecar 讀取指標。",
+  "metrics_bar.native_only": "僅在 Windows 托盤版可用。",
+  "metrics_bar.enabled": "顯示工作列橫條",
+  "metrics_bar.enabled.hint": "也可在托盤選單中開關。",
+  "metrics_bar.refresh": "刷新間隔",
+  "metrics_bar.opacity": "透明度",
+  "metrics_bar.columns": "顯示項目",
+  "metrics_bar.col.cpu": "CPU",
+  "metrics_bar.col.mem": "記憶體",
+  "metrics_bar.col.temp": "CPU 溫度",
+  "metrics_bar.col.power": "CPU 功耗",
+  "metrics_bar.col.up": "上傳",
+  "metrics_bar.col.dl": "下載"
 }

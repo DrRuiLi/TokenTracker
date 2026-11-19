@@ -60,6 +60,7 @@ class PushWorker(threading.Thread):
         }
         self._sent = collections.deque(maxlen=64)
         self._metrics: Optional[MetricsCollector] = None
+        self._last_metrics: Dict[str, Any] = {}
 
     # ---- UI-facing API (thread-safe, non-blocking) ----
     def update_settings(self, settings: Dict[str, Any]) -> None:
@@ -104,6 +105,15 @@ class PushWorker(threading.Thread):
         st.update(m.sensor_info() if m is not None
                   else {"sensor_source": None, "sensor_embedded": "未启用", "admin": False})
         return st
+
+    def metrics_snapshot(self) -> Dict[str, Any]:
+        with self._lock:
+            metrics = dict(self._last_metrics)
+        m = self._metrics
+        sensor = m.sensor_info() if m is not None else {
+            "sensor_source": None, "sensor_embedded": "未启用", "admin": False,
+        }
+        return {"metrics": metrics, "sensor": sensor, "ts": time.time()}
 
     # ---- worker ----
     def _set_status(self, **kw) -> None:
@@ -184,6 +194,8 @@ class PushWorker(threading.Thread):
                         m = metrics.sample() if metrics else placeholder_metrics()
                     except Exception:
                         m = placeholder_metrics()
+                    with self._lock:
+                        self._last_metrics = dict(m)
                     t0 = time.perf_counter()
                     img = render(m, stats or empty_stats(), settings.get("theme"), settings.get("layout", "classic"))
                     rot = int(settings.get("rotation", 0)) % 360

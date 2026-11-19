@@ -208,6 +208,8 @@ class DashHost:
         cfg.save(self.settings)
 
     def _exec(self, cmd: str, payload):
+        if cmd == "get_metrics":
+            return self.worker.metrics_snapshot()
         if cmd == "get_settings":
             return self._view()
         if cmd == "set_settings":
