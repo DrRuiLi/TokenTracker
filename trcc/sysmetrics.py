@@ -64,6 +64,26 @@ def pick_cpu_power(rows: List[SensorRow]) -> Optional[float]:
     return _prefer(rows, _POWER_PREFER) if rows else None
 
 
+def _gpu_rows(rows: List[SensorRow]) -> List[SensorRow]:
+    return [r for r in rows if "gpu" in (r[0] + " " + r[1]).lower()
+            and "cpu" not in (r[0] + " " + r[1]).lower()]
+
+
+def pick_gpu_load(rows: List[SensorRow]) -> Optional[float]:
+    candidates = [r for r in _gpu_rows(rows) if "/load/" in r[1].lower() and "memory" not in r[0].lower()]
+    return max((r[2] for r in candidates if 0 <= r[2] <= 100), default=None)
+
+
+def pick_gpu_temp(rows: List[SensorRow]) -> Optional[float]:
+    candidates = [r for r in _gpu_rows(rows) if "/temperature/" in r[1].lower() and 0 < r[2] < 125]
+    return _prefer(candidates, ("GPU Core", "GPU Hot Spot", "GPU Memory")) if candidates else None
+
+
+def pick_gpu_memory_load(rows: List[SensorRow]) -> Optional[float]:
+    candidates = [r for r in _gpu_rows(rows) if "/load/" in r[1].lower() and "memory" in r[0].lower()]
+    return max((r[2] for r in candidates if 0 <= r[2] <= 100), default=None)
+
+
 @functools.lru_cache(maxsize=1)
 def is_admin() -> bool:
     if os.name != "nt":
@@ -115,9 +135,11 @@ class LhmSource:
             sys.path.append(str(dll_dir))
         clr.AddReference(str(dll_dir / _LHM_DLL))
         from LibreHardwareMonitor.Hardware import Computer, SensorType  # type: ignore
-        self._types = (SensorType.Temperature, SensorType.Power)
+        self._types = (SensorType.Temperature, SensorType.Power, SensorType.Load,
+                       SensorType.Data, SensorType.SmallData)
         self._computer = Computer()
         self._computer.IsCpuEnabled = True
+        self._computer.IsGpuEnabled = True
         self._computer.Open()
 
     def rows(self) -> List[SensorRow]:
@@ -152,6 +174,9 @@ class SensorPoller(threading.Thread):
         self.period = period
         self.temp_c: Optional[float] = None
         self.power_w: Optional[float] = None
+        self.gpu_percent: Optional[float] = None
+        self.gpu_temp_c: Optional[float] = None
+        self.vram_percent: Optional[float] = None
         self.source: Optional[str] = None      # key of SOURCE_LABELS that produced values
         self.embedded_status = "未启用"          # human-readable state of the embedded source
         self._stop_evt = threading.Event()
@@ -235,13 +260,15 @@ class SensorPoller(threading.Thread):
 
     def _poll_once(self) -> None:
         source = None
+        gpu = gpu_temp = vram = None
         if self._is_windows:
-            temp = power = None
+            temp = power = gpu = gpu_temp = vram = None
             if self._lhm is not None:
                 try:
                     rows = self._lhm.rows()
                     temp, power = pick_cpu_temp(rows), pick_cpu_power(rows)
-                    if temp is not None or power is not None:
+                    gpu, gpu_temp, vram = pick_gpu_load(rows), pick_gpu_temp(rows), pick_gpu_memory_load(rows)
+                    if any(v is not None for v in (temp, power, gpu, gpu_temp, vram)):
                         source = "lhm"
                 except Exception as e:
                     log.debug("embedded sensor read failed: %s", e)
@@ -249,7 +276,8 @@ class SensorPoller(threading.Thread):
                 rows = self._wmi_rows()
                 temp = pick_cpu_temp(rows) if rows else None
                 power = pick_cpu_power(rows) if rows else None
-                if temp is not None or power is not None:
+                gpu, gpu_temp, vram = pick_gpu_load(rows), pick_gpu_temp(rows), pick_gpu_memory_load(rows)
+                if any(v is not None for v in (temp, power, gpu, gpu_temp, vram)):
                     source = "wmi"
             if temp is None:
                 temp = self._acpi_temp()
@@ -259,7 +287,9 @@ class SensorPoller(threading.Thread):
             temp, power = _linux_temp(), _linux_power()
             if temp is not None or power is not None:
                 source = "linux"
-        self.temp_c, self.power_w, self.source = temp, power, source
+        self.temp_c, self.power_w = temp, power
+        self.gpu_percent, self.gpu_temp_c, self.vram_percent = gpu, gpu_temp, vram
+        self.source = source
 
     # ---- Windows: LHM / OHM WMI, one cached connection ----
     def _wmi_connect(self):
@@ -298,7 +328,7 @@ class SensorPoller(threading.Thread):
         try:
             res = self._wmi.ExecQuery(
                 "SELECT Name, Identifier, Value FROM Sensor "
-                "WHERE SensorType = 'Temperature' OR SensorType = 'Power'")
+                "WHERE SensorType = 'Temperature' OR SensorType = 'Power' OR SensorType = 'Load'")
             rows: List[SensorRow] = []
             for s in res:
                 try:
@@ -390,6 +420,8 @@ class MetricsCollector:
         self._dl: Deque[float] = collections.deque(maxlen=history)
         self._net0 = None
         self._t0 = None
+        self._disk0 = None
+        self._disk_t0 = None
         self._last_power: Optional[float] = None
         self._last_temp: Optional[float] = None
         self._sensors: Optional[SensorPoller] = None
@@ -437,6 +469,20 @@ class MetricsCollector:
         self._net0 = io
         self._t0 = now
 
+        disk = psutil.disk_io_counters()
+        disk_read_bps = disk_write_bps = 0.0
+        if disk is not None and self._disk0 is not None and self._disk_t0 is not None:
+            disk_dt = max(1e-3, now - self._disk_t0)
+            disk_read_bps = max(0.0, (disk.read_bytes - self._disk0.read_bytes) / disk_dt)
+            disk_write_bps = max(0.0, (disk.write_bytes - self._disk0.write_bytes) / disk_dt)
+        self._disk0, self._disk_t0 = disk, now
+
+        gpu = gpu_temp = vram = None
+        if self._sensors is not None:
+            gpu = self._sensors.gpu_percent
+            gpu_temp = self._sensors.gpu_temp_c
+            vram = self._sensors.vram_percent
+
         if self._sensors is not None:
             if self._sensors.temp_c is not None:
                 self._last_temp = self._sensors.temp_c
@@ -462,6 +508,11 @@ class MetricsCollector:
             "power_w": self._last_power,
             "power_hist": list(self._power) or ([self._last_power] if self._last_power is not None else [0]),
             "temp_c": self._last_temp,
+            "gpu": gpu,
+            "gpu_temp_c": gpu_temp,
+            "vram": vram,
+            "disk_read_bps": disk_read_bps,
+            "disk_write_bps": disk_write_bps,
             "temp_hist": list(self._temp) or ([self._last_temp] if self._last_temp is not None else [0]),
             "up_bps": up_bps,
             "up_hist": list(self._up) or [up_bps],

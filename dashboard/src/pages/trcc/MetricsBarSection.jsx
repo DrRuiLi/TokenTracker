@@ -40,7 +40,7 @@ function toNativePayload(settings) {
   };
 }
 
-export function MetricsBarSection({ trccPort }) {
+export function MetricsBarSection({ trccPort, mode = "taskbar" }) {
   const native = isNativeWindowsApp();
   const [settings, setSettings] = useState({ ...DEFAULT_METRICS_BAR_SETTINGS, trccPort: trccPort ?? 17691 });
   const [ready, setReady] = useState(!native);
@@ -75,80 +75,82 @@ export function MetricsBarSection({ trccPort }) {
 
   if (!native) {
     return (
-      <SectionCard title={copy("metrics_bar.section.title")}>
+      <SectionCard title={copy(mode === "hardware" ? "trcc.section.hardware" : "trcc.section.taskbar")}>
         <p className="text-sm text-oai-gray-500 dark:text-oai-gray-400">{copy("metrics_bar.native_only")}</p>
       </SectionCard>
     );
   }
 
   return (
-    <SectionCard title={copy("metrics_bar.section.title")} subtitle={copy("metrics_bar.section.hint")}>
-      <div className="flex flex-col gap-5 py-2">
-        <SettingsRow
-          label={copy("metrics_bar.enabled")}
-          hint={copy("metrics_bar.enabled.hint")}
-          control={
-            <ToggleSwitch
-              checked={settings.enabled}
-              onChange={(enabled) => persist({ ...settings, enabled })}
-              disabled={!ready}
-            />
-          }
-        />
-        <SettingsRow
-          label={copy("metrics_bar.refresh")}
-          control={
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={500}
-                max={5000}
-                step={500}
-                value={settings.refreshMs}
-                onChange={(e) => persist({ ...settings, refreshMs: Number(e.target.value) })}
-                className="w-full max-w-xs"
-              />
-              <span className="text-sm tabular-nums text-oai-gray-600 dark:text-oai-gray-300">
-                {settings.refreshMs} ms
-              </span>
-            </div>
-          }
-        />
-        <SettingsRow
-          label={copy("metrics_bar.opacity")}
-          control={
-            <input
-              type="range"
-              min={40}
-              max={100}
-              value={Math.round(settings.opacity * 100)}
-              onChange={(e) => persist({ ...settings, opacity: Number(e.target.value) / 100 })}
-              className="w-full max-w-xs"
-            />
-          }
-        />
-        <div>
-          <div className="mb-2 text-sm font-medium text-oai-gray-800 dark:text-oai-gray-200">
-            {copy("metrics_bar.columns")}
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-6">
+      {mode === "hardware" ? (
+        <SectionCard title={copy("metrics_bar.hardware.title")} subtitle={copy("metrics_bar.hardware.hint")}>
+          <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
             {METRICS_BAR_COLUMNS.map((col) => (
-              <button
+              <SettingsRow
                 key={col.id}
-                type="button"
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  settings.columns.includes(col.id)
-                    ? "border-oai-blue-500 bg-oai-blue-50 text-oai-blue-700 dark:bg-oai-blue-950 dark:text-oai-blue-200"
-                    : "border-oai-gray-300 text-oai-gray-600 dark:border-oai-gray-600 dark:text-oai-gray-300"
-                }`}
-                onClick={() => toggleColumn(col.id)}
-              >
-                {copy(col.labelKey)}
-              </button>
+                label={copy(col.labelKey)}
+                control={
+                  <ToggleSwitch
+                    checked={settings.columns.includes(col.id)}
+                    onChange={() => toggleColumn(col.id)}
+                    disabled={!ready}
+                    ariaLabel={copy(col.labelKey)}
+                  />
+                }
+              />
             ))}
           </div>
-        </div>
-      </div>
-    </SectionCard>
+        </SectionCard>
+      ) : (
+        <SectionCard title={copy("metrics_bar.section.title")} subtitle={copy("metrics_bar.section.hint")}>
+          <div className="flex flex-col gap-2 py-2">
+            <SettingsRow
+              label={copy("metrics_bar.enabled")}
+              hint={copy("metrics_bar.enabled.hint")}
+              control={
+                <ToggleSwitch
+                  checked={settings.enabled}
+                  onChange={(enabled) => persist({ ...settings, enabled })}
+                  disabled={!ready}
+                />
+              }
+            />
+            <SettingsRow
+              label={copy("metrics_bar.refresh")}
+              control={
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={500}
+                    max={5000}
+                    step={500}
+                    value={settings.refreshMs}
+                    onChange={(e) => persist({ ...settings, refreshMs: Number(e.target.value) })}
+                    className="w-full max-w-xs"
+                  />
+                  <span className="text-sm tabular-nums text-oai-gray-600 dark:text-oai-gray-300">
+                    {settings.refreshMs} ms
+                  </span>
+                </div>
+              }
+            />
+            <SettingsRow
+              label={copy("metrics_bar.opacity")}
+              control={
+                <input
+                  type="range"
+                  min={40}
+                  max={100}
+                  value={Math.round(settings.opacity * 100)}
+                  onChange={(e) => persist({ ...settings, opacity: Number(e.target.value) / 100 })}
+                  className="w-full max-w-xs"
+                />
+              }
+            />
+          </div>
+        </SectionCard>
+      )}
+    </div>
   );
 }

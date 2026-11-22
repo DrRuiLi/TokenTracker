@@ -12,7 +12,9 @@ internal sealed class MetricsTaskbarLayout
     private static readonly (string Top, string Bottom)[] DefaultPairs =
     [
         ("cpu", "temp"),
-        ("power", "mem"),
+        ("gpu", "gpu_temp"),
+        ("vram", "mem"),
+        ("disk_read", "disk_write"),
         ("up", "dl"),
     ];
 
@@ -38,16 +40,18 @@ internal sealed class MetricsTaskbarLayout
     public int LineHeight { get; private init; }
     public float FontPt { get; private init; }
 
-    public static string StructureKey(MetricsBarSettings settings, int clientHeight, int dpi, bool english) =>
+    public static string StructureKey(MetricsBarSettings settings, int clientHeight, int dpi, bool english, int maxPanelWidth) =>
         string.Concat(string.Join(",", settings.Columns), "|", clientHeight.ToString(CultureInfo.InvariantCulture),
-            "|", dpi.ToString(CultureInfo.InvariantCulture), "|", english ? "1" : "0");
+            "|", dpi.ToString(CultureInfo.InvariantCulture), "|", english ? "1" : "0",
+            "|", maxPanelWidth.ToString(CultureInfo.InvariantCulture));
 
     public static MetricsTaskbarLayout Build(
         MetricsBarSettings settings,
         IReadOnlyDictionary<string, double?> values,
         bool english,
         int clientHeight,
-        Graphics measure)
+        Graphics measure,
+        int maxPanelWidth = 0)
     {
         var visible = new HashSet<string>(settings.Columns, StringComparer.Ordinal);
         var cols = new List<Column>();
@@ -74,21 +78,19 @@ internal sealed class MetricsTaskbarLayout
         var twoLine = cols.Exists(c => c.Top != null && c.Bottom != null);
         var lineHeight = twoLine ? Math.Max(8, height / 2) : height;
         var fontPt = MetricsTaskbarPalette.FitPointSize(measure, lineHeight);
-        using var font = MetricsTaskbarPalette.CreateFont(fontPt);
 
         const int pad = 4;
-        const int gap = 8;
-        const int inner = 10;
-
-        var total = pad * 2;
-        foreach (var col in cols)
+        var gap = 8;
+        var inner = 6;
+        var total = MeasureColumns(measure, cols, fontPt, gap, inner, pad);
+        var limit = maxPanelWidth > pad * 2 ? maxPanelWidth : 0;
+        while (limit > 0 && total > limit && (fontPt > 7f || gap > 4 || inner > 2))
         {
-            var wTop = MeasureCell(measure, col.Top, font, inner);
-            var wBottom = MeasureCell(measure, col.Bottom, font, inner);
-            col.Width = Math.Max(wTop, wBottom);
-            total += col.Width;
+            if (fontPt > 7f) fontPt = (float)Math.Round((fontPt - 0.5f) * 2) / 2f;
+            else if (gap > 4) gap -= 2;
+            else inner -= 2;
+            total = MeasureColumns(measure, cols, fontPt, gap, inner, pad);
         }
-        if (cols.Count > 1) total += (cols.Count - 1) * gap;
 
         var topH = twoLine ? height / 2 : height;
         var x = pad;
@@ -101,11 +103,11 @@ internal sealed class MetricsTaskbarLayout
             }
             else if (col.Top != null)
             {
-                col.Top.Bounds = new Rectangle(x, 0, col.Width, height);
+                col.Top.Bounds = new Rectangle(x, 0, col.Width, twoLine ? topH : height);
             }
             else if (col.Bottom != null)
             {
-                col.Bottom.Bounds = new Rectangle(x, 0, col.Width, height);
+                col.Bottom.Bounds = new Rectangle(x, twoLine ? topH : 0, col.Width, twoLine ? height - topH : height);
             }
             x += col.Width + gap;
         }
@@ -145,14 +147,29 @@ internal sealed class MetricsTaskbarLayout
         return true;
     }
 
+    private static int MeasureColumns(Graphics g, List<Column> cols, float fontPt, int gap, int inner, int pad)
+    {
+        using var font = MetricsTaskbarPalette.CreateFont(fontPt);
+        var total = pad * 2;
+        foreach (var col in cols)
+        {
+            var wTop = MeasureCell(g, col.Top, font, inner);
+            var wBottom = MeasureCell(g, col.Bottom, font, inner);
+            col.Width = Math.Max(wTop, wBottom);
+            total += col.Width;
+        }
+        if (cols.Count > 1) total += (cols.Count - 1) * gap;
+        return total;
+    }
+
     private static int MeasureCell(Graphics g, Cell? cell, Font font, int inner)
     {
         if (cell is null) return 0;
         var flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
         var wLabel = TextRenderer.MeasureText(g, cell.Label, font, Size.Empty, flags).Width;
         var wValue = TextRenderer.MeasureText(g, SampleValue(cell.Key), font, Size.Empty, flags).Width;
-        // TextRenderer under-reports bold glyphs by a couple of pixels.
-        return wLabel + wValue + inner + 4;
+        // Same digit count as the live formatter, plus a couple of pixels for bold glyphs.
+        return wLabel + wValue + inner + 2;
     }
 
     private static Cell MakeCell(string key, IReadOnlyDictionary<string, double?> values, bool english)
@@ -171,8 +188,13 @@ internal sealed class MetricsTaskbarLayout
     {
         "cpu" => "CPU",
         "temp" => "CPU",
+        "gpu" => "GPU",
+        "gpu_temp" => "GPU",
+        "vram" => english ? "VRAM" : "显存",
         "power" => "PWR",
         "mem" => english ? "MEM" : "内存",
+        "disk_read" => english ? "READ" : "读",
+        "disk_write" => english ? "WRITE" : "写",
         "up" => "↑",
         "dl" => "↓",
         _ => key.ToUpperInvariant(),
@@ -181,11 +203,11 @@ internal sealed class MetricsTaskbarLayout
     /// <summary>Widest text the live formatter can produce for this key.</summary>
     private static string SampleValue(string key) => key switch
     {
-        "cpu" or "mem" => "000.0%",
-        "temp" => "000.0°",
-        "power" => "000.0W",
-        "up" or "dl" => "000.0MB",
-        _ => "0000.0",
+        "cpu" or "gpu" or "vram" or "mem" => "99.9%",
+        "temp" or "gpu_temp" => "99.9°",
+        "power" => "999.9W",
+        "disk_read" or "disk_write" or "up" or "dl" => "99.9MB",
+        _ => "999.9",
     };
 
     internal static string FormatTaskbarValue(string key, double? value)
@@ -193,9 +215,11 @@ internal sealed class MetricsTaskbarLayout
         if (value is not { } v || double.IsNaN(v)) return "—";
         return key switch
         {
-            "cpu" or "mem" => $"{v:0.#}%",
+            "cpu" or "gpu" or "vram" or "mem" => $"{v:0.#}%",
             "temp" => $"{v:0.#}°",
+            "gpu_temp" => $"{v:0.#}°",
             "power" => $"{v:0.#}W",
+            "disk_read" or "disk_write" => FormatNetCompact(v),
             "up" or "dl" => FormatNetCompact(v),
             _ => $"{v:0.#}",
         };
@@ -213,10 +237,10 @@ internal sealed class MetricsTaskbarLayout
         if (value is not { } v) return 0;
         return key switch
         {
-            "cpu" or "mem" when v >= 85 => 2,
-            "cpu" or "mem" when v >= 60 => 1,
-            "temp" when v >= 70 => 2,
-            "temp" when v >= 50 => 1,
+            "cpu" or "gpu" or "vram" or "mem" when v >= 85 => 2,
+            "cpu" or "gpu" or "vram" or "mem" when v >= 60 => 1,
+            "temp" or "gpu_temp" when v >= 85 => 2,
+            "temp" or "gpu_temp" when v >= 70 => 1,
             _ => 0,
         };
     }

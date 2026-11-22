@@ -23,7 +23,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>assets\trayicon.ico</ApplicationIcon>
     <!-- Keep in sync with package.json / project.yml on release. -->
-    <Version>1.5.24.4</Version>
+    <Version>1.5.24.6</Version>
     <Product>TokenTracker</Product>
     <Company>TokenTracker</Company>
     <!-- App UI strings live in TrayStrings/NativeLocalization (no .resx), so the
@@ -35,6 +35,18 @@
   <ItemGroup>
     <!-- Floating 1.0.* so restore picks the latest Evergreen-compatible runtime loader. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="LibreHardwareMonitorLib">
+      <HintPath>..\trcc\vendor\lhm\LibreHardwareMonitorLib.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <None Include="..\trcc\vendor\lhm\*.dll"
+          Exclude="..\trcc\vendor\lhm\LibreHardwareMonitorLib.dll;..\trcc\vendor\lhm\System.Management.dll"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

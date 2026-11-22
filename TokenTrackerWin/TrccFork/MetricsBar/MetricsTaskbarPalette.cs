@@ -39,7 +39,7 @@ internal static class MetricsTaskbarPalette
     {
         const float preferred = 9f;
         using var probe = CreateFont(preferred);
-        var textH = TextRenderer.MeasureText(g, "Ag内存", probe, Size.Empty,
+        var textH = TextRenderer.MeasureText(g, "Ag显存", probe, Size.Empty,
             TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Height;
         var limit = Math.Max(8, lineHeight - 1);
         if (textH <= limit || textH <= 0) return preferred;

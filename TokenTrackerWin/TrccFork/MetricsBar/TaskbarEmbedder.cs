@@ -104,10 +104,26 @@ internal sealed class TaskbarEmbedder
         var key = (uint)(_chromaKey.R | (_chromaKey.G << 8) | (_chromaKey.B << 16));
         if (_layerReady && _appliedKey == key) return changed;
 
+        // Color key only. Combining LWA_ALPHA punches a tinted slab through the taskbar.
         TaskbarNative.SetLayeredWindowAttributes(form.Handle, key, 0, TaskbarNative.LwaColorkey);
         _appliedKey = key;
         _layerReady = true;
         return true;
+    }
+
+    /// <summary>Client pixels between the taskbar's left edge and the tray, minus the gap.</summary>
+    public int AvailableClientWidth()
+    {
+        if (_hTray == 0 || _hTaskbar == 0) return 0;
+        if (!TaskbarNative.GetWindowRect(_hTray, out var tr)) return 0;
+        if (!TaskbarNative.GetWindowRect(_hTaskbar, out var parent)) return 0;
+        var dpi = Math.Max(96, GetTaskbarDpi());
+        var gap = Math.Max(4, dpi * 6 / 96);
+        var phys = tr.left - parent.left - gap;
+        if (phys < 48) return 0;
+        if (_basisClientW > 8 && _basisPhysW > 8)
+            return Math.Max(48, (int)Math.Round(phys * (_basisClientW / (double)_basisPhysW)));
+        return Math.Max(48, phys * 96 / dpi);
     }
 
     public bool Attach(MetricsBarForm form)
@@ -170,6 +186,7 @@ internal sealed class TaskbarEmbedder
 
         if (!TryClientOrigin(physW, out var x, out var y))
             return false;
+        if (x < 0) x = 0;
 
         // Same HWND rectangle as last time: SetWindowPos would only flash.
         if (_hasPlaced && x == _lastX && y == _lastY && physW == _lastPhysW && physH == _lastPhysH)

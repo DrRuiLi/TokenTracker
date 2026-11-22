@@ -2207,6 +2207,11 @@ cloud.order_cancel.pending_label,dashboard,Cloud,CancelPendingOrder,pending_labe
 cloud.order_cancel.unverified_label,dashboard,Cloud,CancelPendingOrder,unverified_label,Verification required,Unconfirmed request is not proof of accepted cancellation,active
 cloud.order_cancel.unknown,dashboard,Cloud,CancelPendingOrder,unknown,Cancellation status is unconfirmed. Do not pay through old links or create another order. Check cancellation status again; code redemption may remain unavailable until verified.,Unconfirmed request is not proof of accepted cancellation,active
 nav.trcc,shared,*,Sidebar,trcc,Side Screen,,active
+nav.hardware_monitor,shared,*,Sidebar,hardware_monitor,Hardware monitoring,,active
+nav.taskbar,shared,*,Sidebar,taskbar,Taskbar,,active
+trcc.section.hardware,ui,TrccPage,TrccPage,section_hardware,Hardware monitoring,,active
+trcc.section.display,ui,TrccPage,TrccPage,section_display,Side screen,,active
+trcc.section.taskbar,ui,TrccPage,TrccPage,section_taskbar,Taskbar,,active
 trcc.page.subtitle,ui,TrccPage,TrccPage,page_subtitle,Settings for the Thermalright side-screen dashboard pushed by trcc-token-dash on this PC.,,active
 trcc.conn.online,ui,TrccPage,TrccPage,conn_online,Connected,,active
 trcc.conn.offline,ui,TrccPage,TrccPage,conn_offline,Not running,,active
@@ -2289,6 +2294,8 @@ trcc.grok.refresh_unit,ui,LimitsPage,GrokXLoginButton,grok_refresh_unit,min,,act
 trcc.grok.refresh_hint,ui,LimitsPage,GrokXLoginButton,grok_refresh_hint,"Bill sync every {{min}}–{{max}} minutes. Press Enter or leave the field to save.",,active
 trcc.grok.refresh_invalid,ui,LimitsPage,GrokXLoginButton,grok_refresh_invalid,Enter a valid number of minutes within the allowed range.,,active
 metrics_bar.section.title,ui,TrccPage,MetricsBarSection,section_title,Taskbar metrics bar,,active
+metrics_bar.hardware.title,ui,TrccPage,MetricsBarSection,hardware_title,Monitoring items,,active
+metrics_bar.hardware.hint,ui,TrccPage,MetricsBarSection,hardware_hint,Choose which hardware metrics appear in the taskbar bar. Available data depends on this PC and trcc-token-dash.,,active
 metrics_bar.section.hint,ui,TrccPage,MetricsBarSection,section_hint,WinForms overlay beside the taskbar; metrics from trcc when available.,,active
 metrics_bar.native_only,ui,TrccPage,MetricsBarSection,native_only,Available in the Windows tray app only.,,active
 metrics_bar.enabled,ui,TrccPage,MetricsBarSection,enabled,Show taskbar bar,,active
@@ -2297,8 +2304,12 @@ metrics_bar.refresh,ui,TrccPage,MetricsBarSection,refresh,Refresh interval,,acti
 metrics_bar.opacity,ui,TrccPage,MetricsBarSection,opacity,Opacity,,active
 metrics_bar.columns,ui,TrccPage,MetricsBarSection,columns,Visible metrics,,active
 metrics_bar.col.cpu,ui,TrccPage,MetricsBarSection,col_cpu,CPU,,active
+metrics_bar.col.gpu,ui,TrccPage,MetricsBarSection,col_gpu,GPU,,active
 metrics_bar.col.mem,ui,TrccPage,MetricsBarSection,col_mem,Memory,,active
 metrics_bar.col.temp,ui,TrccPage,MetricsBarSection,col_temp,CPU temp,,active
-metrics_bar.col.power,ui,TrccPage,MetricsBarSection,col_power,CPU power,,active
+metrics_bar.col.gpu_temp,ui,TrccPage,MetricsBarSection,col_gpu_temp,GPU temp,,active
+metrics_bar.col.vram,ui,TrccPage,MetricsBarSection,col_vram,VRAM,,active
+metrics_bar.col.disk_read,ui,TrccPage,MetricsBarSection,col_disk_read,Disk read,,active
+metrics_bar.col.disk_write,ui,TrccPage,MetricsBarSection,col_disk_write,Disk write,,active
 metrics_bar.col.up,ui,TrccPage,MetricsBarSection,col_up,Upload,,active
 metrics_bar.col.dl,ui,TrccPage,MetricsBarSection,col_dl,Download,,active

@@ -20,6 +20,8 @@ import {
   Moon,
   Monitor,
   MonitorCog,
+  Cpu,
+  PanelBottom,
   Cloud,
 } from "lucide-react";
 import { copy } from "../../lib/copy";
@@ -56,7 +58,9 @@ export function getNavGroups() {
         { id: "skills", to: "/skills", icon: Puzzle, label: copy("nav.skills") },
         { id: "ip-check", to: "/ip-check", icon: Globe, label: copy("nav.ip_check") },
         { id: "service-status", to: "/service-status", icon: Activity, label: copy("nav.service_status") },
+        { id: "hardware-monitor", to: "/hardware-monitor", icon: Cpu, label: copy("nav.hardware_monitor") },
         { id: "trcc", to: "/trcc", icon: MonitorCog, label: copy("nav.trcc") },
+        { id: "taskbar", to: "/taskbar", icon: PanelBottom, label: copy("nav.taskbar") },
       ],
     },
     {

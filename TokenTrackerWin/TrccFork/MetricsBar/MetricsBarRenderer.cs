@@ -16,7 +16,8 @@ internal static class MetricsBarRenderer
         MetricsTaskbarPalette.ConfigureGraphics(g);
         var font = MetricsTaskbarPalette.CachedFont(layout.FontPt <= 0 ? 9f : layout.FontPt);
         var labelColor = MetricsTaskbarPalette.LabelColor(lightTaskbar);
-        const TextFormatFlags fmt = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+        const TextFormatFlags fmt = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding
+            | TextFormatFlags.SingleLine | TextFormatFlags.NoClipping;
 
         foreach (var col in layout.Columns)
         {
@@ -34,6 +35,7 @@ internal static class MetricsBarRenderer
             ? labelColor
             : MetricsTaskbarPalette.ValueColor(cell.ColorState, light);
 
+        // LiteMonitor taskbar: label on the left edge, value on the right edge of the same cell.
         TextRenderer.DrawText(g, cell.Label, font, rc, labelColor,
             fmt | TextFormatFlags.Left);
         TextRenderer.DrawText(g, cell.Value, font, rc, valueColor,

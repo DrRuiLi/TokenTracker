@@ -258,7 +258,10 @@ export default function App() {
   const isServiceStatusPath = normalizedPath === "/service-status";
   const isAchievementsPath = normalizedPath === "/achievements";
   const isTrccPath = normalizedPath === "/trcc";
-  if (isLimitsPath || isSettingsPath || isCloudPath || isCheckoutPath || isSelfHostPath || isSkillsPath || isSessionsPath || isWidgetsPath || isPetPath || isIpCheckPath || isServiceStatusPath || isAchievementsPath || isTrccPath) gate = "dashboard";
+  const isHardwareMonitorPath = normalizedPath === "/hardware-monitor";
+  const isTaskbarPath = normalizedPath === "/taskbar";
+  const isSystemMonitorPath = isTrccPath || isHardwareMonitorPath || isTaskbarPath;
+  if (isLimitsPath || isSettingsPath || isCloudPath || isCheckoutPath || isSelfHostPath || isSkillsPath || isSessionsPath || isWidgetsPath || isPetPath || isIpCheckPath || isServiceStatusPath || isAchievementsPath || isSystemMonitorPath) gate = "dashboard";
 
   let PageComponent = DashboardPage;
   if (profileUserId) {
@@ -289,7 +292,7 @@ export default function App() {
     PageComponent = ServiceStatusPage;
   } else if (isAchievementsPath) {
     PageComponent = AchievementsPage;
-  } else if (isTrccPath) {
+  } else if (isSystemMonitorPath) {
     PageComponent = TrccPage;
   }
 
@@ -311,7 +314,7 @@ export default function App() {
       isIpCheckPath ||
       isServiceStatusPath ||
       isAchievementsPath ||
-      isTrccPath);
+      isSystemMonitorPath);
 
   // Public-host gating: on www.tokentracker.cc et al. there is no local
   // CLI :7680 to fall back to, so dashboard / settings / etc. require a

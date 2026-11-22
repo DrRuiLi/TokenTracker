@@ -9,7 +9,10 @@ internal sealed class MetricsBarPoller : IDisposable
     private static readonly (string Alias, string Key)[] ApiAliases =
     [
         ("temp_c", "temp"),
+        ("gpu_temp_c", "gpu_temp"),
         ("power_w", "power"),
+        ("disk_read_bps", "disk_read"),
+        ("disk_write_bps", "disk_write"),
         ("up_bps", "up"),
         ("dl_bps", "dl"),
     ];
@@ -59,7 +62,7 @@ internal sealed class MetricsBarPoller : IDisposable
                     using var doc = JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("metrics", out var metrics))
                     {
-                        Publish(ParseMetrics(metrics));
+                        Publish(FillMissing(ParseMetrics(metrics), _fallback.Sample()));
                         return;
                     }
                 }
@@ -103,7 +106,7 @@ internal sealed class MetricsBarPoller : IDisposable
         foreach (var key in MetricsBarSettings.AllColumns)
             dict[key] = ReadNumber(metrics, key);
 
-        // trcc/sysmetrics.py publishes temp_c, power_w, up_bps, dl_bps.
+        // trcc/sysmetrics.py publishes the corresponding sensor aliases.
         foreach (var (alias, key) in ApiAliases)
         {
             if (dict[key] is not null) continue;
@@ -111,6 +114,15 @@ internal sealed class MetricsBarPoller : IDisposable
             if (value is not null) dict[key] = value;
         }
         return dict;
+    }
+
+    private static Dictionary<string, double?> FillMissing(
+        Dictionary<string, double?> values, Dictionary<string, double?> fallback)
+    {
+        foreach (var (key, value) in fallback)
+            if ((!values.TryGetValue(key, out var current) || current is null) && value is not null)
+                values[key] = value;
+        return values;
     }
 
     private static double? ReadNumber(JsonElement metrics, string key)

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { AppWindow, MonitorCog, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
 import { copy } from "../lib/copy";
 import { cn } from "../lib/cn";
@@ -152,6 +153,9 @@ function OfflineCard({ port, onRetry }) {
 }
 
 export function TrccPage() {
+  const { pathname } = useLocation();
+  const activeSection = pathname === "/trcc" ? "display" : pathname === "/taskbar" ? "taskbar" : "hardware";
+  const displayPage = activeSection === "display";
   const [port, setPort] = useState(readTrccPort);
   const [data, setData] = useState(null); // last /api/state (settings/app/meta/status)
   const [offline, setOffline] = useState(false);
@@ -178,6 +182,12 @@ export function TrccPage() {
 
   useEffect(() => {
     aliveRef.current = true;
+    if (!displayPage) {
+      setLoading(false);
+      return () => {
+        aliveRef.current = false;
+      };
+    }
     void load();
     const timer = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
@@ -187,7 +197,7 @@ export function TrccPage() {
       aliveRef.current = false;
       clearInterval(timer);
     };
-  }, [load]);
+  }, [displayPage, load]);
 
   useEffect(() => () => clearTimeout(colorTimer.current), []);
 
@@ -264,14 +274,16 @@ export function TrccPage() {
           <div className="flex flex-row items-start justify-between gap-4 mb-8">
             <div className="min-w-0">
               <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-oai-black dark:text-white mb-3">
-                {copy("nav.trcc")}
+                {copy(activeSection === "display" ? "nav.trcc" : `trcc.section.${activeSection}`)}
               </h1>
-              <p className="text-oai-gray-500 dark:text-oai-gray-400 text-sm sm:text-base">
-                {copy("trcc.page.subtitle")}
-              </p>
+              {displayPage ? (
+                <p className="text-oai-gray-500 dark:text-oai-gray-400 text-sm sm:text-base">
+                  {copy("trcc.page.subtitle")}
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              {!loading ? (
+              {displayPage && !loading ? (
                 <span className="hidden sm:inline-flex items-center gap-2 text-xs text-oai-gray-500 dark:text-oai-gray-400">
                   <span
                     aria-hidden
@@ -280,7 +292,7 @@ export function TrccPage() {
                   {online ? copy("trcc.conn.online") : copy("trcc.conn.offline")}
                 </span>
               ) : null}
-              <button
+              {displayPage ? <button
                 type="button"
                 onClick={() => void load()}
                 aria-label={copy("trcc.refresh")}
@@ -288,19 +300,20 @@ export function TrccPage() {
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-oai-gray-200 dark:border-oai-gray-800 text-oai-gray-600 dark:text-oai-gray-400 hover:bg-oai-gray-100 dark:hover:bg-oai-gray-800 hover:text-oai-black dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oai-brand-500"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden />
-              </button>
+              </button> : null}
             </div>
           </div>
 
-          {loading && !data ? (
+          {displayPage && loading && !data ? (
             <div className="h-40 rounded-lg bg-oai-gray-100 dark:bg-oai-gray-900 animate-pulse" />
           ) : null}
 
-          {!loading && !online ? <OfflineCard port={port} onRetry={changePort} /> : null}
+          {activeSection === "hardware" ? <MetricsBarSection trccPort={port} mode="hardware" /> : null}
+          {activeSection === "taskbar" ? <MetricsBarSection trccPort={port} mode="taskbar" /> : null}
 
-          <MetricsBarSection trccPort={port} />
+          {activeSection === "display" && !loading && !online ? <OfflineCard port={port} onRetry={changePort} /> : null}
 
-          {online ? (
+          {activeSection === "display" && online ? (
             <div className="flex flex-col gap-6">
               <Card className="rounded-lg">
                 <div className="mb-3 flex items-center justify-between gap-4">

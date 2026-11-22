@@ -1,7 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { copy } from "../lib/copy";
 import { TrccPage } from "./TrccPage.jsx";
+
+// TrccPage reads useLocation() to pick its section (/trcc, /taskbar, /hardware-monitor).
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={["/trcc"]}>
+      <TrccPage />
+    </MemoryRouter>
+  );
+}
 
 function stateBody(overrides = {}) {
   return {
@@ -45,7 +55,7 @@ describe("TrccPage", () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     }));
-    render(<TrccPage />);
+    renderPage();
     expect(await screen.findByText(copy("trcc.offline.title"))).toBeInTheDocument();
     const port = screen.getByLabelText(copy("trcc.offline.port"));
     fireEvent.change(port, { target: { value: "18000" } });
@@ -65,7 +75,7 @@ describe("TrccPage", () => {
       return jsonResponse(stateBody());
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<TrccPage />);
+    renderPage();
 
     expect(await screen.findByText("PM=17 SUB=5 · 960×320 · 1.0 fps")).toBeInTheDocument();
     expect(screen.getByText("内置传感器")).toBeInTheDocument();
@@ -88,7 +98,7 @@ describe("TrccPage", () => {
       return jsonResponse(stateBody());
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<TrccPage />);
+    renderPage();
     const toggle = await screen.findByRole("switch", { name: copy("trcc.push.label") });
     fireEvent.click(toggle);
     await waitFor(() => {

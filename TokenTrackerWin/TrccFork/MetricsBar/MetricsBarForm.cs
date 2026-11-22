@@ -80,16 +80,18 @@ internal sealed class MetricsBarForm : Form
     public void UpdateView(MetricsBarSettings theme, IReadOnlyDictionary<string, double?> values, bool english)
     {
         _english = english;
+        _embedder.ApplyLayeredStyle(this);
         var paint = false;
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var height = PaintHeight();
-            var key = MetricsTaskbarLayout.StructureKey(theme, height, DeviceDpi, _english);
+            var maxWidth = _embedder.AvailableClientWidth();
+            var key = MetricsTaskbarLayout.StructureKey(theme, height, DeviceDpi, _english, maxWidth);
             var relayout = key != _structureKey || _layout.Columns.Count == 0;
             if (relayout)
             {
                 using var g = CreateMeasureGraphics();
-                _layout = MetricsTaskbarLayout.Build(theme, values, _english, height, g);
+                _layout = MetricsTaskbarLayout.Build(theme, values, _english, height, g, maxWidth);
                 _structureKey = key;
                 _logicalWidth = _layout.PanelWidth;
                 _logicalHeight = height;
