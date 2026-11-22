@@ -86,7 +86,8 @@ internal sealed class MetricsBarForm : Form
         {
             var height = PaintHeight();
             var maxWidth = _embedder.AvailableClientWidth();
-            var key = MetricsTaskbarLayout.StructureKey(theme, height, DeviceDpi, _english, maxWidth);
+            var key = MetricsTaskbarLayout.StructureKey(theme, height, DeviceDpi, _english, maxWidth)
+                + "|" + MetricsTaskbarLayout.ContentSignature(theme, values);
             var relayout = key != _structureKey || _layout.Columns.Count == 0;
             if (relayout)
             {

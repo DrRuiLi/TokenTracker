@@ -4,8 +4,8 @@ using System.Globalization;
 namespace TokenTrackerWin.TrccFork.MetricsBar;
 
 /// <summary>
-/// Two-row taskbar columns. Width comes from a stable sample string, so a
-/// value change never resizes the window.
+/// Two-row taskbar columns. Width follows the current text with digits
+/// normalized to 0, so 72 and 89 share a column and 9% to 10% grows it.
 /// </summary>
 internal sealed class MetricsTaskbarLayout
 {
@@ -45,6 +45,47 @@ internal sealed class MetricsTaskbarLayout
         string.Concat(string.Join(",", settings.Columns), "|", clientHeight.ToString(CultureInfo.InvariantCulture),
             "|", dpi.ToString(CultureInfo.InvariantCulture), "|", english ? "1" : "0",
             "|", maxPanelWidth.ToString(CultureInfo.InvariantCulture));
+
+    /// <summary>
+    /// Same length and the same non-digit characters (unit, dot, percent) keep
+    /// the previous column widths. A new digit or a unit change returns a new key.
+    /// </summary>
+    public static string ContentSignature(MetricsBarSettings settings, IReadOnlyDictionary<string, double?> values)
+    {
+        unchecked
+        {
+            var hash = 17;
+            foreach (var key in DisplayedKeys(settings))
+            {
+                values.TryGetValue(key, out var value);
+                var text = FormatTaskbarValue(key, value);
+                hash = hash * 31 + text.Length;
+                foreach (var c in text)
+                {
+                    if (!char.IsDigit(c)) hash = (hash << 5) - hash + c;
+                }
+            }
+            return hash.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    private static IEnumerable<string> DisplayedKeys(MetricsBarSettings settings)
+    {
+        var visible = new HashSet<string>(settings.Columns, StringComparer.Ordinal);
+        var any = false;
+        foreach (var (topKey, bottomKey) in DefaultPairs)
+        {
+            var showTop = visible.Contains(topKey);
+            var showBottom = bottomKey is string bottomName && visible.Contains(bottomName);
+            if (!showTop && !showBottom) continue;
+            any = true;
+            if (showTop) yield return topKey;
+            if (showBottom) yield return bottomKey!;
+        }
+        if (any) yield break;
+        foreach (var key in settings.Columns)
+            yield return key;
+    }
 
     public static MetricsTaskbarLayout Build(
         MetricsBarSettings settings,
@@ -169,12 +210,19 @@ internal sealed class MetricsTaskbarLayout
         if (cell is null) return 0;
         var flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
         var wLabel = TextRenderer.MeasureText(g, cell.Label, font, Size.Empty, flags).Width;
-        var wValue = TextRenderer.MeasureText(g, SampleValue(cell.Key), font, Size.Empty, flags).Width;
-        if (cell.Key is "cpu" or "gpu" or "vram" or "mem")
-            wValue = Math.Max(wValue, TextRenderer.MeasureText(g, "100%", font, Size.Empty, flags).Width);
-        // Bold ClearType glyphs run wider than MeasureText. The extra pixels stay
-        // inside this cell so a full-width value cannot touch the label or the next column.
-        return wLabel + wValue + inner + 8;
+        var wValue = TextRenderer.MeasureText(g, ZeroDigits(cell.Value), font, Size.Empty, flags).Width;
+        // Bold ClearType glyphs run a couple of pixels wider than MeasureText.
+        return wLabel + wValue + inner + 2;
+    }
+
+    private static string ZeroDigits(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return string.Create(text.Length, text, static (span, value) =>
+        {
+            for (var i = 0; i < value.Length; i++)
+                span[i] = char.IsDigit(value[i]) ? '0' : value[i];
+        });
     }
 
     private static Cell MakeCell(string key, IReadOnlyDictionary<string, double?> values, bool english)
@@ -203,16 +251,6 @@ internal sealed class MetricsTaskbarLayout
         "up" => "↑",
         "dl" => "↓",
         _ => key.ToUpperInvariant(),
-    };
-
-    /// <summary>Widest text the live formatter can produce for this key.</summary>
-    private static string SampleValue(string key) => key switch
-    {
-        "cpu" or "gpu" or "vram" or "mem" => "99.9%",
-        "temp" or "gpu_temp" => "199.9°",
-        "power" => "999.9W",
-        "disk_read" or "disk_write" or "up" or "dl" => "1023.9MB",
-        _ => "9999.9",
     };
 
     internal static string FormatTaskbarValue(string key, double? value)
