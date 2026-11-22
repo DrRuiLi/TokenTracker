@@ -4,20 +4,13 @@ using System.Globalization;
 namespace TokenTrackerWin.TrccFork.MetricsBar;
 
 /// <summary>
-/// Two-row taskbar columns. Width follows the current text with digits
-/// normalized to 0, so 72 and 89 share a column and 9% to 10% grows it.
+/// Two-row taskbar columns. Order follows <see cref="MetricsBarSettings.ColumnOrder"/>.
+/// Hidden items are skipped, then visible items stack two per column.
+/// Width follows the current text with digits normalized to 0, so 72 and 89
+/// share a column and 9% to 10% grows it.
 /// </summary>
 internal sealed class MetricsTaskbarLayout
 {
-    private static readonly (string Top, string? Bottom)[] DefaultPairs =
-    [
-        ("cpu", "temp"),
-        ("power", null),
-        ("gpu", "gpu_temp"),
-        ("vram", "mem"),
-        ("disk_read", "disk_write"),
-        ("up", "dl"),
-    ];
 
     internal sealed class Cell
     {
@@ -42,7 +35,8 @@ internal sealed class MetricsTaskbarLayout
     public float FontPt { get; private init; }
 
     public static string StructureKey(MetricsBarSettings settings, int clientHeight, int dpi, bool english, int maxPanelWidth) =>
-        string.Concat(string.Join(",", settings.Columns), "|", clientHeight.ToString(CultureInfo.InvariantCulture),
+        string.Concat(string.Join(",", settings.ColumnOrder ?? []), "|", string.Join(",", settings.Columns),
+            "|", clientHeight.ToString(CultureInfo.InvariantCulture),
             "|", dpi.ToString(CultureInfo.InvariantCulture), "|", english ? "1" : "0",
             "|", maxPanelWidth.ToString(CultureInfo.InvariantCulture));
 
@@ -71,20 +65,36 @@ internal sealed class MetricsTaskbarLayout
 
     private static IEnumerable<string> DisplayedKeys(MetricsBarSettings settings)
     {
-        var visible = new HashSet<string>(settings.Columns, StringComparer.Ordinal);
-        var any = false;
-        foreach (var (topKey, bottomKey) in DefaultPairs)
+        foreach (var (top, bottom) in Plan(settings))
         {
-            var showTop = visible.Contains(topKey);
-            var showBottom = bottomKey is string bottomName && visible.Contains(bottomName);
-            if (!showTop && !showBottom) continue;
-            any = true;
-            if (showTop) yield return topKey;
-            if (showBottom) yield return bottomKey!;
+            yield return top;
+            if (bottom is not null) yield return bottom;
         }
-        if (any) yield break;
-        foreach (var key in settings.Columns)
-            yield return key;
+    }
+
+    internal static List<(string Top, string? Bottom)> Plan(MetricsBarSettings settings)
+    {
+        var visible = new HashSet<string>(settings.Columns ?? [], StringComparer.Ordinal);
+        var items = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in settings.ColumnOrder ?? [])
+        {
+            if (!visible.Contains(key) || !seen.Add(key)) continue;
+            if (!MetricsBarSettings.AllColumns.Contains(key, StringComparer.Ordinal)) continue;
+            items.Add(key);
+        }
+        foreach (var key in MetricsBarSettings.DefaultColumnOrder)
+        {
+            if (visible.Contains(key) && seen.Add(key)) items.Add(key);
+        }
+
+        var columns = new List<(string Top, string? Bottom)>();
+        for (var i = 0; i < items.Count; i += 2)
+        {
+            string? bottom = i + 1 < items.Count ? items[i + 1] : null;
+            columns.Add((items[i], bottom));
+        }
+        return columns;
     }
 
     public static MetricsTaskbarLayout Build(
@@ -95,27 +105,14 @@ internal sealed class MetricsTaskbarLayout
         Graphics measure,
         int maxPanelWidth = 0)
     {
-        var visible = new HashSet<string>(settings.Columns, StringComparer.Ordinal);
         var cols = new List<Column>();
-
-        foreach (var (topKey, bottomKey) in DefaultPairs)
+        foreach (var (topKey, bottomKey) in Plan(settings))
         {
-            var showTop = visible.Contains(topKey);
-            Cell? bottom = null;
-            if (bottomKey is string bottomName && visible.Contains(bottomName))
-                bottom = MakeCell(bottomName, values, english);
-            if (!showTop && bottom is null) continue;
             cols.Add(new Column
             {
-                Top = showTop ? MakeCell(topKey, values, english) : null,
-                Bottom = bottom,
+                Top = MakeCell(topKey, values, english),
+                Bottom = bottomKey is string bottomName ? MakeCell(bottomName, values, english) : null,
             });
-        }
-
-        if (cols.Count == 0)
-        {
-            foreach (var key in settings.Columns)
-                cols.Add(new Column { Top = MakeCell(key, values, english) });
         }
 
         var height = Math.Max(16, clientHeight);
