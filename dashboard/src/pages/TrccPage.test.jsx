@@ -5,9 +5,9 @@ import { copy } from "../lib/copy";
 import { TrccPage } from "./TrccPage.jsx";
 
 // TrccPage reads useLocation() to pick its section (/trcc, /taskbar, /hardware-monitor).
-function renderPage() {
+function renderPage(path = "/trcc") {
   return render(
-    <MemoryRouter initialEntries={["/trcc"]}>
+    <MemoryRouter initialEntries={[path]}>
       <TrccPage />
     </MemoryRouter>
   );
@@ -78,10 +78,10 @@ describe("TrccPage", () => {
     renderPage();
 
     expect(await screen.findByText("PM=17 SUB=5 · 960×320 · 1.0 fps")).toBeInTheDocument();
-    expect(screen.getByText("内置传感器")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: copy("trcc.preview.title") }).getAttribute("src"))
       .toBe("http://127.0.0.1:17691/api/preview.png?seq=3");
-    expect(screen.getByRole("button", { name: copy("trcc.admin.relaunch") })).toBeInTheDocument();
+    expect(screen.queryByLabelText(copy("trcc.sensor_interval.label"))).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: copy("trcc.admin.relaunch") })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "90°" }));
     await waitFor(() => {
@@ -90,6 +90,16 @@ describe("TrccPage", () => {
       expect(post[0]).toBe("http://127.0.0.1:17691/api/settings");
       expect(JSON.parse(post[1].body)).toEqual({ rotation: 90 });
     });
+  });
+
+  it("puts sampling interval and administrator restart on the hardware page", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(stateBody())));
+    renderPage("/hardware-monitor");
+
+    expect(await screen.findByLabelText(copy("trcc.sensor_interval.label"))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: copy("trcc.admin.relaunch") })).toBeInTheDocument();
+    expect(screen.getByText("内置传感器")).toBeInTheDocument();
+    expect(screen.getByText(copy("trcc.sensor_interval.hint"))).toBeInTheDocument();
   });
 
   it("toggles pushing through /api/push", async () => {

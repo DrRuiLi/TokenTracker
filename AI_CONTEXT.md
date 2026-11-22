@@ -1,7 +1,7 @@
 # AI_CONTEXT — TokenTracker-TRCC（TokenTracker + 利民副屏）
 
 > 架构地图。AI 助手在新会话开始时先读本文件。**本文件只读，修改需用户明确同意。**
-> 最后更新：2026-11-22（补充合入隔离与中英文文案约定。此前：2026-11-13 合入上游 v1.5.19，本树版本 v1.5.19.1）
+> 最后更新：2026-11-22（采样间隔和管理员重启改到 `/hardware-monitor`；任务栏横条读副屏 `/api/metrics`。此前同日：补充合入隔离与中英文文案约定。更早：2026-11-13 合入上游 v1.5.19，本树版本 v1.5.19.1）
 
 ## 1. 目标
 
@@ -10,7 +10,7 @@ Windows 上的一份程序同时做两件事：
 - **TokenTracker**（本树 `package.json` 为 v1.5.19.1，内容基线是上游 v1.5.19，MIT）：托盘程序 + 本地仪表盘。主用量读 `merged-usage.jsonl`（队列 + X 订阅账单）。按来源的细项、成就、项目用量仍读原始 `queue.jsonl`。
 - **副屏**（`trcc/`，协议源自 thermalright-trcc-linux，GPL-3.0）：把 token 和本机状态画成 960×320，经 USB Bulk 推到利民 **HydroNous R1**（`87AD:70DB`，握手 PM=17 SUB=5，0° 即正向）。
 
-副屏是 TokenTracker 的子进程，随它启动和退出，没有单独的托盘图标。设置页在仪表盘「工具」里的 `/trcc`，不另开 Tk 窗口。副屏自己不联网，只读 TokenTracker 写好的合并文件。
+副屏是 TokenTracker 的子进程，随它启动和退出，没有单独的托盘图标。设置分成三页，都在仪表盘「工具」里，不另开 Tk 窗口：`/trcc` 是副屏画面，`/hardware-monitor` 是硬件监测，`/taskbar` 是任务栏横条。副屏自己不联网，只读 TokenTracker 写好的合并文件。
 
 作者机器时区 UTC+8。已安装的程序在 `%LOCALAPPDATA%\Programs\TokenTracker`。源码树里的安装包是另一次编译产物，覆盖安装前，正在运行的仍是安装目录里的那一份。
 
@@ -40,7 +40,8 @@ Windows 上的一份程序同时做两件事：
 | `TokenTrackerWin/` | .NET 8 托盘壳（WebView2）。`scripts/bundle-node.ps1` 打进 Node 22.22.2 |
 | `TokenTrackerBar/`、`TokenTrackerLinux/` | 上游的 macOS / Linux 壳，Windows 安装包不用它们 |
 | `trcc/` | 副屏 Python。`vendor/libusb-1.0.dll` 管 USB；`vendor/lhm/` 是嵌入的 LibreHardwareMonitorLib 0.9.6 及依赖 DLL |
-| `dashboard/src/pages/TrccPage.jsx` | 工具页。路由 `/trcc`，侧栏 id `trcc` |
+| `dashboard/src/pages/TrccPage.jsx` | 三个工具页共用。`/trcc` 副屏画面；`/hardware-monitor` 监测项、采样间隔、管理员重启；`/taskbar` 任务栏横条。侧栏 id 分别是 `trcc`、`hardware-monitor`、`taskbar` |
+| `TokenTrackerWin/TrccFork/MetricsBar/` | 任务栏横条。设置在 `%LOCALAPPDATA%\TokenTracker\metrics-bar.json` |
 | `dashboard/src/pages/trcc/GrokLoginCard.jsx` | `/trcc` 上的 X 订阅登录 |
 | `src/lib/trcc-sidecar.js` | `tracker serve` 拉起副屏，并传入 `--usage-file` |
 | `src/commands/serve.js` | 监听之后、启动同步之前调用 `startTrccSidecar()`，退出时 `stop()`；同时刷新账单和合并文件。启动同步可能很久，副屏不等它 |
@@ -78,7 +79,7 @@ Node 在 Windows Job Object 里（`KILL_ON_JOB_CLOSE`）。`--serve` 无 Tk、�
 | `device.py` | USBLCDNew Bulk（pyusb）。libusb 找 `_MEIPASS`、exe 目录、源码 `vendor/` |
 | `render.py` | 960×320 画面。默认统计合并文件里的全部来源，同一 `(source, model, hour_start)` 取最后一条 |
 | `layouts.py` | 六种版面：经典、用量聚焦、系统优先、星环仪表、信号波形、遥测控制台 |
-| `sysmetrics.py` | CPU / 内存 / 网速每帧用 psutil。温度和功耗在 `SensorPoller` |
+| `sysmetrics.py` | CPU / 内存 / 网速每帧用 psutil。温度、功耗、GPU 占用和显存在 `SensorPoller` |
 | `settings.py` | `%LOCALAPPDATA%\trcc-token-dash\settings.json` |
 | `gui.py` | 独立运行时的 Tk 窗口。`--serve` 不显示 |
 | `theme_edit.py`、`theme_presets.py` | 主题色派生和预设 |
@@ -107,16 +108,18 @@ X 订阅（Cursor + Grok）没有公开的 token 历史接口。下载在 `track
 
 ## 6. 温度和功耗
 
-采样和画面刷新是两个设置。用量刷新不在副屏设置里。
+采样和画面刷新是两个设置。用量刷新不在这两页里。`render_interval` 在 `/trcc`。`sensor_interval` 和「以管理员身份重启」在 `/hardware-monitor`。
 
 | 设置 | 范围 | 默认 | 作用 |
 |---|---|---|---|
-| `render_interval` | 0.2–10 秒，步进 0.2 | 1 | 重画画面 |
-| `sensor_interval` | 0.5–60 秒，步进 0.5 | 2 | 只采样 CPU 温度和功耗 |
+| `render_interval` | 0.2–10 秒，步进 0.2 | 1 | 重画副屏画面 |
+| `sensor_interval` | 0.5–60 秒，步进 0.5 | 2 | 采样 CPU / GPU 的温度、功耗、占用和显存 |
 
 `sensor_interval` 改完立刻写到 `SensorPoller.period`。缩短会在当前等待里生效（每 0.25 秒看一次剩余时间）；加长从下一次循环开始。
 
-传感器顺序：嵌入的 LibreHardwareMonitorLib（要管理员、.NET 8、本机已装的 PawnIO）→ LibreHardwareMonitor / OpenHardwareMonitor 的 WMI → MSAcpi。ACPI 兜底仍是最多 60 秒一次，不受 `sensor_interval` 控制。非管理员时温度和功耗为 0，状态是「需要管理员权限」。CPU、内存、网速不走这条采样线程。
+传感器顺序：嵌入的 LibreHardwareMonitorLib（要管理员、.NET 8、本机已装的 PawnIO）→ LibreHardwareMonitor / OpenHardwareMonitor 的 WMI → MSAcpi。ACPI 兜底仍是最多 60 秒一次，不受 `sensor_interval` 控制，而且只有温度。非管理员时内置传感器读到 0，状态是「需要管理员权限」。CPU 占用、内存、网速不走这条采样线程。
+
+任务栏横条优先读 `GET /api/metrics` 里的同一份 `metrics`。别名是 `temp_c`→`temp`、`power_w`→`power`、`gpu_temp_c`→`gpu_temp`，`gpu` 和 `vram` 同名。解析时缺键不能抛错：抛错会丢掉整包，横条改用托盘进程自己的采样。管理员重启只提升副屏进程，托盘进程那条采样读不到温度、功耗、GPU 占用和显存。列宽按格式化后的最宽样本预留，标签和数字分开画。
 
 ## 7. 控制接口和设置页
 
@@ -124,7 +127,7 @@ X 订阅（Cursor + Grok）没有公开的 token 历史接口。下载在 `track
 
 `host.API_EDITABLE`：`rotation`、`mirror`、`render_interval`、`sensor_interval`、`close_action`、`colors`、`theme_preset`、`layout`。数值先按 `RANGES` 夹取，再 `settings.sanitize`。`RANGES` 只有 `render_interval` 和 `sensor_interval`。
 
-仪表盘通过 `dashboard/src/lib/trcc-api.js` 访问。页面文案在 `dashboard/src/content/copy.csv`，中文和繁体在 `i18n/zh/core.json`、`i18n/zh-TW/core.json`。
+仪表盘通过 `dashboard/src/lib/trcc-api.js` 访问。`/trcc` 改画面，`/hardware-monitor` 改采样并申请管理员重启，`/taskbar` 只改横条外观和开关。页面文案在 `dashboard/src/content/copy.csv`，中文和繁体在 `i18n/zh/core.json`、`i18n/zh-TW/core.json`。
 
 默认序列号 `181104191B22C003` 不是这台机器时，程序警告并使用第一台 `87AD:70DB`。
 
@@ -156,6 +159,6 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 - 主用量走 `merged-usage.jsonl`。按来源的细项、成就、项目用量留在原始 `queue.jsonl`。账单合成行带 `billing_included`，费用保持 $0。有 Usage 拆分时输入/输出列有数，仍不要改 `computeRowCost` 去给它们计价。
 - 不记录、不打印 JWT 或 Cookie。不把 `state.vscdb` 接回副屏，不整文件读取或复制它。
 - 副屏界面线程不做 USB 和网络。账单下载留在 `tracker serve`。慢的传感器读取留在采样线程。COM/WMI 线程自己 `CoInitialize()`。
-- 新的副屏设置要同时接到 `settings.py`、`host.API_EDITABLE` / `RANGES`、`worker.update_settings`，以及 `TrccPage` 和文案。
+- 新的副屏设置要同时接到 `settings.py`、`host.API_EDITABLE` / `RANGES`、`worker.update_settings`，以及 `TrccPage` 和文案。采样间隔和管理员重启放在 `/hardware-monitor`，画面设置留在 `/trcc`。
 - 不要操作用户的桌面（鼠标、键盘）。需要看界面时，让用户截图。
 - 许可证：副屏协议 GPL-3.0（见 `trcc/NOTICE`），TokenTracker 为 MIT。

@@ -66,7 +66,16 @@ internal sealed class MetricsBarPoller : IDisposable
                         return;
                     }
                 }
-                catch { /* fall through */ }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+                {
+                    // Sidecar is down or slow. The local sampler covers CPU, memory, and rates.
+                }
+                catch (Exception ex)
+                {
+                    // A parse error must not discard a good payload on the next poll,
+                    // but this response cannot be trusted. Log it instead of hiding it.
+                    Diag.Log("metrics-bar", $"metrics parse failed: {ex.GetType().Name}: {ex.Message}");
+                }
             }
 
             Publish(_fallback.Sample().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal));
@@ -106,10 +115,12 @@ internal sealed class MetricsBarPoller : IDisposable
         foreach (var key in MetricsBarSettings.AllColumns)
             dict[key] = ReadNumber(metrics, key);
 
-        // trcc/sysmetrics.py publishes the corresponding sensor aliases.
+        // trcc/sysmetrics.py publishes temp_c, power_w, gpu_temp_c, and the rate aliases.
+        // A missing column key must not throw: that used to drop the whole payload,
+        // so the taskbar kept the sampler that cannot see those sensors.
         foreach (var (alias, key) in ApiAliases)
         {
-            if (dict[key] is not null) continue;
+            if (dict.TryGetValue(key, out var existing) && existing is not null) continue;
             var value = ReadNumber(metrics, alias);
             if (value is not null) dict[key] = value;
         }

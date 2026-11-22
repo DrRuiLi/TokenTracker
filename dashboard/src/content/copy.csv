@@ -2244,8 +2244,9 @@ trcc.layout.signal-wave,ui,TrccPage,TrccPage,layout_signal_wave,Signal wave,,act
 trcc.layout.telemetry,ui,TrccPage,TrccPage,layout_telemetry,Telemetry console,,active
 trcc.interval.label,ui,TrccPage,TrccPage,interval_label,Redraw interval (s),,active
 trcc.sensor_interval.label,ui,TrccPage,TrccPage,sensor_interval_label,Temp / power sample (s),,active
-trcc.sensor_interval.hint,ui,TrccPage,TrccPage,sensor_interval_hint,Separate from the redraw interval. Only CPU temperature and power use this.,,active
+trcc.sensor_interval.hint,ui,TrccPage,TrccPage,sensor_interval_hint,"Separate from the redraw interval. CPU and GPU temperature, power, load, and VRAM use this.",,active
 trcc.close_action.label,ui,TrccPage,TrccPage,close_action_label,When the app window is closed,,active
+trcc.section.sensors,ui,TrccPage,TrccPage,section_sensors,Sensors,,active
 trcc.section.status,ui,TrccPage,TrccPage,section_status,Status,,active
 trcc.status.device,ui,TrccPage,TrccPage,status_device,Device,,active
 trcc.status.connected,ui,TrccPage,TrccPage,status_connected,PM={{pm}} SUB={{sub}} · {{w}}×{{h}} · {{fps}} fps,,active
@@ -2260,7 +2261,7 @@ trcc.status.sensor_none,ui,TrccPage,TrccPage,status_sensor_none,Unavailable ({{r
 trcc.status.render,ui,TrccPage,TrccPage,status_render,Render time,,active
 trcc.status.admin,ui,TrccPage,TrccPage,status_admin,Administrator,,active
 trcc.status.admin_yes,ui,TrccPage,TrccPage,status_admin_yes,Yes,,active
-trcc.status.admin_hint,ui,TrccPage,TrccPage,status_admin_hint,Reading CPU temperature and power needs administrator rights.,,active
+trcc.status.admin_hint,ui,TrccPage,TrccPage,status_admin_hint,"CPU temperature and power, plus GPU load, temperature, and VRAM, need administrator rights.",,active
 trcc.admin.relaunch,ui,TrccPage,TrccPage,admin_relaunch,Restart as administrator,,active
 trcc.admin.requested,ui,TrccPage,TrccPage,admin_requested,Confirm the UAC prompt; this page reconnects automatically.,,active
 trcc.admin.cancelled,ui,TrccPage,TrccPage,admin_cancelled,Administrator restart was cancelled.,,active
@@ -2308,6 +2309,7 @@ metrics_bar.col.cpu,ui,TrccPage,MetricsBarSection,col_cpu,CPU,,active
 metrics_bar.col.gpu,ui,TrccPage,MetricsBarSection,col_gpu,GPU,,active
 metrics_bar.col.mem,ui,TrccPage,MetricsBarSection,col_mem,Memory,,active
 metrics_bar.col.temp,ui,TrccPage,MetricsBarSection,col_temp,CPU temp,,active
+metrics_bar.col.power,ui,TrccPage,MetricsBarSection,col_power,Power,,active
 metrics_bar.col.gpu_temp,ui,TrccPage,MetricsBarSection,col_gpu_temp,GPU temp,,active
 metrics_bar.col.vram,ui,TrccPage,MetricsBarSection,col_vram,VRAM,,active
 metrics_bar.col.disk_read,ui,TrccPage,MetricsBarSection,col_disk_read,Disk read,,active

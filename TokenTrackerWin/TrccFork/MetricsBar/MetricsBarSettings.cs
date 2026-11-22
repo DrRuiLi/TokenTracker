@@ -18,13 +18,13 @@ internal sealed class MetricsBarSettings
         "TokenTracker", "metrics-bar.json");
 
     public static readonly string[] AllColumns =
-        ["cpu", "gpu", "temp", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
+        ["cpu", "gpu", "temp", "gpu_temp", "vram", "power", "mem", "disk_read", "disk_write", "up", "dl"];
 
     public bool Enabled { get; set; }
     public int RefreshMs { get; set; } = 1000;
     public double Opacity { get; set; } = 0.92;
     public int TrccPort { get; set; } = DefaultTrccPort;
-    public string[] Columns { get; set; } = ["cpu", "gpu", "temp", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
+    public string[] Columns { get; set; } = ["cpu", "gpu", "temp", "gpu_temp", "vram", "power", "mem", "disk_read", "disk_write", "up", "dl"];
     public string Background { get; set; } = "#1e2024";
     public string Text { get; set; } = "#e8eaed";
     public string TextDim { get; set; } = "#9aa0a8";
@@ -67,14 +67,29 @@ internal sealed class MetricsBarSettings
         Opacity = Math.Clamp(Opacity, 0.4, 1.0);
         TrccPort = Math.Clamp(TrccPort, 0, 65535);
         var oldColumns = Columns ?? [];
-        var legacyDefaults = new HashSet<string>(["cpu", "mem", "temp", "power", "up", "dl"], StringComparer.Ordinal);
-        if (oldColumns.Length == legacyDefaults.Count && oldColumns.All(legacyDefaults.Contains))
-            oldColumns = ["cpu", "gpu", "temp", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
+        // The set that shipped before power had its own column. Keep a custom
+        // selection, and put power back only when the saved list is still a default.
+        string[][] defaults =
+        [
+            ["cpu", "mem", "temp", "power", "up", "dl"],
+            ["cpu", "gpu", "temp", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"],
+        ];
+        if (defaults.Any(expected => SameColumns(oldColumns, expected)))
+            oldColumns = ["cpu", "gpu", "temp", "gpu_temp", "vram", "power", "mem", "disk_read", "disk_write", "up", "dl"];
         Columns = oldColumns
             .Where(c => AllColumns.Contains(c, StringComparer.Ordinal))
             .Distinct()
             .ToArray();
         if (Columns.Length == 0) Columns = ["cpu", "temp"];
+    }
+
+    private static bool SameColumns(IReadOnlyList<string> columns, IReadOnlyList<string> expected)
+    {
+        if (columns.Count != expected.Count) return false;
+        var set = new HashSet<string>(expected, StringComparer.Ordinal);
+        foreach (var column in columns)
+            if (!set.Contains(column)) return false;
+        return true;
     }
 
     public MetricsBarSettings Clone() =>

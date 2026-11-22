@@ -16,18 +16,16 @@ internal static class MetricsBarRenderer
         MetricsTaskbarPalette.ConfigureGraphics(g);
         var font = MetricsTaskbarPalette.CachedFont(layout.FontPt <= 0 ? 9f : layout.FontPt);
         var labelColor = MetricsTaskbarPalette.LabelColor(lightTaskbar);
-        const TextFormatFlags fmt = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding
-            | TextFormatFlags.SingleLine | TextFormatFlags.NoClipping;
 
         foreach (var col in layout.Columns)
         {
-            DrawCell(g, col.Top, font, labelColor, lightTaskbar, fmt);
-            DrawCell(g, col.Bottom, font, labelColor, lightTaskbar, fmt);
+            DrawCell(g, col.Top, font, labelColor, lightTaskbar);
+            DrawCell(g, col.Bottom, font, labelColor, lightTaskbar);
         }
     }
 
     private static void DrawCell(Graphics g, MetricsTaskbarLayout.Cell? cell, Font font,
-        Color labelColor, bool light, TextFormatFlags fmt)
+        Color labelColor, bool light)
     {
         if (cell is null || cell.Bounds == Rectangle.Empty) return;
         var rc = cell.Bounds;
@@ -35,11 +33,20 @@ internal static class MetricsBarRenderer
             ? labelColor
             : MetricsTaskbarPalette.ValueColor(cell.ColorState, light);
 
-        // LiteMonitor taskbar: label on the left edge, value on the right edge of the same cell.
-        TextRenderer.DrawText(g, cell.Label, font, rc, labelColor,
-            fmt | TextFormatFlags.Left);
-        TextRenderer.DrawText(g, cell.Value, font, rc, valueColor,
-            fmt | TextFormatFlags.Right);
+        // Label and value get separate rectangles. One shared rect with NoClipping
+        // paints a long value through the label and into the next column.
+        var measureFlags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+        var labelWidth = TextRenderer.MeasureText(g, cell.Label, font, Size.Empty, measureFlags).Width;
+        const int gap = 4;
+        var labelRect = new Rectangle(rc.Left, rc.Top, Math.Min(labelWidth, Math.Max(0, rc.Width - gap)), rc.Height);
+        var valueLeft = Math.Min(rc.Right, labelRect.Right + gap);
+        var valueRect = new Rectangle(valueLeft, rc.Top, Math.Max(0, rc.Right - valueLeft), rc.Height);
+        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding
+            | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
+        if (labelRect.Width > 0)
+            TextRenderer.DrawText(g, cell.Label, font, labelRect, labelColor, flags | TextFormatFlags.Left);
+        if (valueRect.Width > 0)
+            TextRenderer.DrawText(g, cell.Value, font, valueRect, valueColor, flags | TextFormatFlags.Right);
     }
 
     public static void Render(Graphics g, Rectangle bounds, MetricsBarSettings theme,

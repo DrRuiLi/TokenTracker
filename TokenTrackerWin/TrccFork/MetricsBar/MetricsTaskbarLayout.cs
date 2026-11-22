@@ -9,9 +9,10 @@ namespace TokenTrackerWin.TrccFork.MetricsBar;
 /// </summary>
 internal sealed class MetricsTaskbarLayout
 {
-    private static readonly (string Top, string Bottom)[] DefaultPairs =
+    private static readonly (string Top, string? Bottom)[] DefaultPairs =
     [
         ("cpu", "temp"),
+        ("power", null),
         ("gpu", "gpu_temp"),
         ("vram", "mem"),
         ("disk_read", "disk_write"),
@@ -59,12 +60,14 @@ internal sealed class MetricsTaskbarLayout
         foreach (var (topKey, bottomKey) in DefaultPairs)
         {
             var showTop = visible.Contains(topKey);
-            var showBottom = visible.Contains(bottomKey);
-            if (!showTop && !showBottom) continue;
+            Cell? bottom = null;
+            if (bottomKey is string bottomName && visible.Contains(bottomName))
+                bottom = MakeCell(bottomName, values, english);
+            if (!showTop && bottom is null) continue;
             cols.Add(new Column
             {
                 Top = showTop ? MakeCell(topKey, values, english) : null,
-                Bottom = showBottom ? MakeCell(bottomKey, values, english) : null,
+                Bottom = bottom,
             });
         }
 
@@ -81,14 +84,13 @@ internal sealed class MetricsTaskbarLayout
 
         const int pad = 4;
         var gap = 8;
-        var inner = 6;
+        const int inner = 6;
         var total = MeasureColumns(measure, cols, fontPt, gap, inner, pad);
         var limit = maxPanelWidth > pad * 2 ? maxPanelWidth : 0;
-        while (limit > 0 && total > limit && (fontPt > 7f || gap > 4 || inner > 2))
+        while (limit > 0 && total > limit && (fontPt > 7f || gap > 4))
         {
             if (fontPt > 7f) fontPt = (float)Math.Round((fontPt - 0.5f) * 2) / 2f;
-            else if (gap > 4) gap -= 2;
-            else inner -= 2;
+            else gap -= 2;
             total = MeasureColumns(measure, cols, fontPt, gap, inner, pad);
         }
 
@@ -103,11 +105,11 @@ internal sealed class MetricsTaskbarLayout
             }
             else if (col.Top != null)
             {
-                col.Top.Bounds = new Rectangle(x, 0, col.Width, twoLine ? topH : height);
+                col.Top.Bounds = new Rectangle(x, 0, col.Width, height);
             }
             else if (col.Bottom != null)
             {
-                col.Bottom.Bounds = new Rectangle(x, twoLine ? topH : 0, col.Width, twoLine ? height - topH : height);
+                col.Bottom.Bounds = new Rectangle(x, 0, col.Width, height);
             }
             x += col.Width + gap;
         }
@@ -168,8 +170,11 @@ internal sealed class MetricsTaskbarLayout
         var flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
         var wLabel = TextRenderer.MeasureText(g, cell.Label, font, Size.Empty, flags).Width;
         var wValue = TextRenderer.MeasureText(g, SampleValue(cell.Key), font, Size.Empty, flags).Width;
-        // Same digit count as the live formatter, plus a couple of pixels for bold glyphs.
-        return wLabel + wValue + inner + 2;
+        if (cell.Key is "cpu" or "gpu" or "vram" or "mem")
+            wValue = Math.Max(wValue, TextRenderer.MeasureText(g, "100%", font, Size.Empty, flags).Width);
+        // Bold ClearType glyphs run wider than MeasureText. The extra pixels stay
+        // inside this cell so a full-width value cannot touch the label or the next column.
+        return wLabel + wValue + inner + 8;
     }
 
     private static Cell MakeCell(string key, IReadOnlyDictionary<string, double?> values, bool english)
@@ -204,10 +209,10 @@ internal sealed class MetricsTaskbarLayout
     private static string SampleValue(string key) => key switch
     {
         "cpu" or "gpu" or "vram" or "mem" => "99.9%",
-        "temp" or "gpu_temp" => "99.9°",
+        "temp" or "gpu_temp" => "199.9°",
         "power" => "999.9W",
-        "disk_read" or "disk_write" or "up" or "dl" => "99.9MB",
-        _ => "999.9",
+        "disk_read" or "disk_write" or "up" or "dl" => "1023.9MB",
+        _ => "9999.9",
     };
 
     internal static string FormatTaskbarValue(string key, double? value)
@@ -227,8 +232,10 @@ internal sealed class MetricsTaskbarLayout
 
     private static string FormatNetCompact(double bps)
     {
-        if (bps >= 1024 * 1024) return $"{bps / (1024 * 1024):0.#}MB";
-        if (bps >= 1024) return $"{bps / 1024:0.#}KB";
+        var abs = Math.Abs(bps);
+        if (abs >= 1024d * 1024 * 1024) return $"{bps / (1024d * 1024 * 1024):0.#}GB";
+        if (abs >= 1024 * 1024) return $"{bps / (1024d * 1024):0.#}MB";
+        if (abs >= 1024) return $"{bps / 1024d:0.#}KB";
         return $"{bps:0}B";
     }
 

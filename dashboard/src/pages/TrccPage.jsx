@@ -156,6 +156,8 @@ export function TrccPage() {
   const { pathname } = useLocation();
   const activeSection = pathname === "/trcc" ? "display" : pathname === "/taskbar" ? "taskbar" : "hardware";
   const displayPage = activeSection === "display";
+  const hardwarePage = activeSection === "hardware";
+  const sidecarPage = displayPage || hardwarePage;
   const [port, setPort] = useState(readTrccPort);
   const [data, setData] = useState(null); // last /api/state (settings/app/meta/status)
   const [offline, setOffline] = useState(false);
@@ -182,12 +184,13 @@ export function TrccPage() {
 
   useEffect(() => {
     aliveRef.current = true;
-    if (!displayPage) {
+    if (!sidecarPage) {
       setLoading(false);
       return () => {
         aliveRef.current = false;
       };
     }
+    setLoading(true);
     void load();
     const timer = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
@@ -197,7 +200,7 @@ export function TrccPage() {
       aliveRef.current = false;
       clearInterval(timer);
     };
-  }, [displayPage, load]);
+  }, [sidecarPage, load]);
 
   useEffect(() => () => clearTimeout(colorTimer.current), []);
 
@@ -308,7 +311,54 @@ export function TrccPage() {
             <div className="h-40 rounded-lg bg-oai-gray-100 dark:bg-oai-gray-900 animate-pulse" />
           ) : null}
 
-          {activeSection === "hardware" ? <MetricsBarSection trccPort={port} mode="hardware" /> : null}
+          {hardwarePage ? (
+            <div className="flex flex-col gap-6">
+              <MetricsBarSection trccPort={port} mode="hardware" />
+              {loading && !data ? (
+                <div className="h-40 rounded-lg bg-oai-gray-100 dark:bg-oai-gray-900 animate-pulse" />
+              ) : null}
+              {!loading && !online ? <OfflineCard port={port} onRetry={changePort} /> : null}
+              {online ? (
+                <SectionCard title={copy("trcc.section.sensors")}>
+                  {meta?.ranges?.sensor_interval ? (
+                    <SettingsRow
+                      label={copy("trcc.sensor_interval.label")}
+                      hint={copy("trcc.sensor_interval.hint")}
+                      control={
+                        <NumberField
+                          value={s.sensor_interval}
+                          min={meta.ranges.sensor_interval[0]}
+                          max={meta.ranges.sensor_interval[1]}
+                          step={meta.ranges.sensor_interval[2]}
+                          ariaLabel={copy("trcc.sensor_interval.label")}
+                          onCommit={(v) => void patch({ sensor_interval: v })}
+                        />
+                      }
+                    />
+                  ) : null}
+                  <StatusRow
+                    label={copy("trcc.status.sensor")}
+                    value={st.sensor_label || copy("trcc.status.sensor_none", { reason: st.sensor_embedded || "-" })}
+                    tone={st.sensor_label ? undefined : "warn"}
+                  />
+                  {app?.can_elevate ? (
+                    <SettingsRow
+                      label={copy("trcc.status.admin")}
+                      hint={copy("trcc.status.admin_hint")}
+                      control={
+                        <Button variant="secondary" size="sm" className="gap-1.5" onClick={() => void relaunchAdmin()}>
+                          <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+                          <span>{copy("trcc.admin.relaunch")}</span>
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <StatusRow label={copy("trcc.status.admin")} value={copy("trcc.status.admin_yes")} tone="ok" />
+                  )}
+                </SectionCard>
+              ) : null}
+            </div>
+          ) : null}
           {activeSection === "taskbar" ? <MetricsBarSection trccPort={port} mode="taskbar" /> : null}
 
           {activeSection === "display" && !loading && !online ? <OfflineCard port={port} onRetry={changePort} /> : null}
@@ -410,22 +460,6 @@ export function TrccPage() {
                       />
                     }
                   />
-                  {meta.ranges.sensor_interval ? (
-                    <SettingsRow
-                      label={copy("trcc.sensor_interval.label")}
-                      hint={copy("trcc.sensor_interval.hint")}
-                      control={
-                        <NumberField
-                          value={s.sensor_interval}
-                          min={meta.ranges.sensor_interval[0]}
-                          max={meta.ranges.sensor_interval[1]}
-                          step={meta.ranges.sensor_interval[2]}
-                          ariaLabel={copy("trcc.sensor_interval.label")}
-                          onCommit={(v) => void patch({ sensor_interval: v })}
-                        />
-                      }
-                    />
-                  ) : null}
                   {app.tray ? (
                     <SettingsRow
                       label={copy("trcc.close_action.label")}
@@ -452,28 +486,9 @@ export function TrccPage() {
                     tone={st.cursor_error ? "warn" : undefined}
                   />
                   <StatusRow
-                    label={copy("trcc.status.sensor")}
-                    value={st.sensor_label || copy("trcc.status.sensor_none", { reason: st.sensor_embedded || "-" })}
-                    tone={st.sensor_label ? undefined : "warn"}
-                  />
-                  <StatusRow
                     label={copy("trcc.status.render")}
                     value={`${Math.round(st.render_ms || 0)} ms`}
                   />
-                  {app.can_elevate ? (
-                    <SettingsRow
-                      label={copy("trcc.status.admin")}
-                      hint={copy("trcc.status.admin_hint")}
-                      control={
-                        <Button variant="secondary" size="sm" className="gap-1.5" onClick={() => void relaunchAdmin()}>
-                          <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
-                          <span>{copy("trcc.admin.relaunch")}</span>
-                        </Button>
-                      }
-                    />
-                  ) : (
-                    <StatusRow label={copy("trcc.status.admin")} value={copy("trcc.status.admin_yes")} tone="ok" />
-                  )}
                   {app.hosted ? null : (
                     <SettingsRow
                       label={copy("trcc.window.label")}
