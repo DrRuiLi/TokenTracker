@@ -1,7 +1,7 @@
 # AI_CONTEXT — TokenTracker-TRCC（TokenTracker + 利民副屏）
 
 > 架构地图。AI 助手在新会话开始时先读本文件。**本文件只读，修改需用户明确同意。**
-> 最后更新：2026-11-13（合入上游 v1.5.19，本树版本 v1.5.19.1）
+> 最后更新：2026-11-22（补充合入隔离与中英文文案约定。此前：2026-11-13 合入上游 v1.5.19，本树版本 v1.5.19.1）
 
 ## 1. 目标
 
@@ -151,6 +151,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ## 9. 修改约定
 
 - 只改本仓库。不要改上一级目录。
+- 本叉新增功能写在新文件里，减少合入上游时和上游文件冲突。实现放在 `TokenTrackerWin/TrccFork/`、`trcc/` 或 `dashboard/src/pages/trcc/`。必须改上游已有文件时，只留薄接线，并用 `#region TRCC fork` 标出。已有接线清单见 `docs/trcc-fork-merge.md`。
+- 没有特别说明时，多语言只维护英文（`dashboard/src/content/copy.csv`）和中文（`dashboard/src/content/i18n/zh`、`i18n/zh-TW`）。日文、韩文、德文等其他语言不用改、不用补。
 - 主用量走 `merged-usage.jsonl`。按来源的细项、成就、项目用量留在原始 `queue.jsonl`。账单合成行带 `billing_included`，费用保持 $0。有 Usage 拆分时输入/输出列有数，仍不要改 `computeRowCost` 去给它们计价。
 - 不记录、不打印 JWT 或 Cookie。不把 `state.vscdb` 接回副屏，不整文件读取或复制它。
 - 副屏界面线程不做 USB 和网络。账单下载留在 `tracker serve`。慢的传感器读取留在采样线程。COM/WMI 线程自己 `CoInitialize()`。
