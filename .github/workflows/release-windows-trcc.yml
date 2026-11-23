@@ -16,9 +16,12 @@ on:
         required: false
         type: boolean
         default: true
+  push:
+    tags:
+      - "v*"
 
 concurrency:
-  group: release-windows-trcc-${{ inputs.version }}
+  group: release-windows-trcc-${{ github.event.inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -31,10 +34,26 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve release version
+        id: meta
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+        run: |
+          $v = $env:INPUT_VERSION
+          if ([string]::IsNullOrWhiteSpace($v)) {
+            $v = $env:GITHUB_REF_NAME.Substring(1)
+          }
+          $publish = $env:INPUT_PUBLISH
+          if ([string]::IsNullOrWhiteSpace($publish)) { $publish = 'true' }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "publish=$publish" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Verify version
         shell: pwsh
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
             Write-Host "::error::Invalid version: $env:VERSION"
@@ -77,14 +96,14 @@ jobs:
       - name: Build installer (build.ps1)
         shell: pwsh
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           powershell -ExecutionPolicy Bypass -File ./build.ps1 -BuildVersion $env:VERSION
 
       - name: Package zip
         shell: pwsh
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           Compress-Archive -Path TokenTrackerWin/publish/* -DestinationPath "TokenTracker-win-x64-v$env:VERSION.zip" -CompressionLevel Optimal
 
@@ -92,8 +111,8 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-          PUBLISH: ${{ inputs.publish }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          PUBLISH: ${{ steps.meta.outputs.publish }}
         run: |
           $tag = "v$env:VERSION"
           $notes = "Windows installer (TokenTracker + TRCC side screen)."
@@ -102,16 +121,17 @@ jobs:
           if (-not (Test-Path $setupBuilt)) { Write-Host "::error::missing $setupBuilt"; exit 1 }
           if (-not (Test-Path $zipBuilt)) { Write-Host "::error::missing $zipBuilt"; exit 1 }
 
-          $draft = $true
-          if ($env:PUBLISH -eq 'true') { $draft = $false }
+          $draft = $env:PUBLISH -ne 'true'
 
           $releaseJson = gh release view $tag --json isDraft,uploadUrl 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title $tag --notes $notes $(if ($draft) { '--draft' })
+            $createArgs = @('release', 'create', $tag, '--title', $tag, '--notes', $notes)
+            if ($draft) { $createArgs += '--draft' }
+            gh @createArgs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
             $release = $releaseJson | ConvertFrom-Json
-            if (-not $release.isDraft -and $draft -eq $false) {
+            if (-not $release.isDraft -and -not $draft) {
               Write-Host "::error::Release $tag is already published. Bump the version instead."
               exit 1
             }
