@@ -10,6 +10,8 @@ Windows 安装版在仪表盘 **工具 → 副屏** 配置推送与主题，副�
 
 ![TokenTracker 副屏设置页](../docs/screenshots/trcc-dashboard-tools.png)
 
+同一套 Windows 安装包还带 **LiteMonitor 风格的任务栏硬件横条**（不附带 LiteMonitor.exe）：CPU/温度、功耗/内存、网速嵌在系统任务栏左侧。在仪表盘 **工具 → 任务栏**（`/taskbar`）开关与样式；数据优先读本机 `GET /api/metrics`（与 **工具 → 硬件监测** 一致）。实现见 `TokenTrackerWin/TrccFork/MetricsBar/`，设计参考 [LiteMonitor](https://github.com/Diorser/LiteMonitor)（MIT）。
+
 ## 使用前
 
 1. **先完全退出官方 TRCC**（托盘图标右键退出；必要时在任务管理器结束 `TRCC.exe`、`USBLCDNEW.exe`）。官方版和本程序不能同时占用副屏。

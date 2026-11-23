@@ -1,6 +1,7 @@
 > **本仓库（[DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)）在 [上游 Token Tracker](https://github.com/xiufengsun/TokenTracker) 基础上新增：**
 >
 > - **TRCC 副屏控制面板** —— Windows 托盘版随 `tracker serve` 驱动利民 **HydroNous R1** 副屏（960×320 USB）；在本地仪表盘 **「工具」→ `/trcc`** 可预览画面、切换布局/主题并控制推送。USB Bulk 推帧协议改编自 [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)（GPL-3.0，见 `trcc/NOTICE`）。
+> - **任务栏硬件横条（LiteMonitor 风格）** —— Windows 安装包已内建：将 CPU/温度、功耗/内存、上行/下行网速嵌进系统任务栏左侧（**不**附带 LiteMonitor.exe）。在本地仪表盘 **「工具」→ `/taskbar`** 开关与样式；指标优先读副屏进程的 `GET /api/metrics`（与 **「工具」→ `/hardware-monitor`** 的采样一致）。任务栏嵌入与配色思路参考 [LiteMonitor](https://github.com/Diorser/LiteMonitor)（MIT，Diorser）。
 > - **X 订阅用量** —— 支持通过仪表盘登录 X 账号，由 TokenTracker 拉取 **grok.com** 账单并与本地 hook 用量合并；副屏与主仪表盘共用合并后的用量统计（详见 `trcc/README.md` 与仓库内 `AI_CONTEXT.md`）。
 
 <p align="center">

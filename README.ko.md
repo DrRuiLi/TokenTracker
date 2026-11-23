@@ -1,6 +1,7 @@
 > **이 포크([DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker))는 [업스트림 Token Tracker](https://github.com/xiufengsun/TokenTracker)에 다음을 추가했습니다:**
 >
 > - **TRCC 보조 디스플레이 제어 패널** — Windows 트레이 앱이 `tracker serve`와 함께 Thermalright **HydroNous R1** 보조 디스플레이(960×320 USB)를 구동합니다. 로컬 대시보드 **도구 → `/trcc`** 에서 미리보기, 레이아웃/테마, 푸시를 제어합니다. USB Bulk 프레임 프로토콜은 [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)에서 개작했습니다(GPL-3.0, `trcc/NOTICE` 참고).
+> - **LiteMonitor 스타일 작업 표시줄 지표 바** — **Windows** 설치 패키지에 포함됩니다. CPU/온도, 전력/메모리, 업/다운 속도를 시스템 작업 표시줄 왼쪽에 삽입합니다(LiteMonitor.exe는 **포함하지 않음**). 로컬 대시보드 **도구 → `/taskbar`** 에서 켜기/끄기와 스타일. 지표는 TRCC 사이드카 `GET /api/metrics` 우선(**도구 → `/hardware-monitor`** 과 동일 샘플링). 작업 표시줄 삽입·팔레트는 [LiteMonitor](https://github.com/Diorser/LiteMonitor)(MIT, Diorser) 참고.
 > - **X 구독 사용량** — 대시보드에서 X 계정으로 로그인하면 TokenTracker가 **grok.com** 청구 CSV를 가져와 로컬 hook 사용량과 병합합니다. 보조 디스플레이와 메인 대시보드가 병합된 통계를 공유합니다(자세한 내용은 `trcc/README.md`, `AI_CONTEXT.md`).
 
 <p align="center">

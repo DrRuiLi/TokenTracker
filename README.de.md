@@ -1,6 +1,7 @@
 > **Dieser Fork ([DrRuiLi/TokenTracker](https://github.com/DrRuiLi/TokenTracker)) ergänzt [upstream Token Tracker](https://github.com/xiufengsun/TokenTracker) um:**
 >
 > - **TRCC-Steuerpanel für das Sekundärdisplay** — Unter Windows treibt die Tray-App mit `tracker serve` das Thermalright-**HydroNous R1**-Sekundärdisplay (960×320 USB). Layout, Theme und Push konfigurierst du im lokalen Dashboard unter **Tools → `/trcc`**. Das USB-Bulk-Frame-Protokoll stammt angepasst von [Lexonight1/thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) (GPL-3.0; siehe `trcc/NOTICE`).
+> - **Taskleisten-Metrikbalken im LiteMonitor-Stil** — Im **Windows**-Installer enthalten: CPU/Temp, Leistung/RAM sowie Up-/Downlink links in der Systemtaskleiste (bundelt **kein** LiteMonitor.exe). Ein/Aus und Stil unter **Tools → `/taskbar`**; Metriken bevorzugt über TRCC-Sidecar `GET /api/metrics` (gleiche Abtastung wie **Tools → `/hardware-monitor`**). Einbettung und Farben orientieren sich an [LiteMonitor](https://github.com/Diorser/LiteMonitor) (MIT, Diorser).
 > - **X-Abonnement-Nutzung** — Mit X-Anmeldung im Dashboard holt TokenTracker **grok.com**-Abrechnungs-CSV und merged sie mit lokalen Hook-Daten; Sekundärdisplay und Haupt-Dashboard teilen sich die zusammengeführten Werte (Details in `trcc/README.md` und `AI_CONTEXT.md`).
 
 <p align="center">
