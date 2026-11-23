@@ -313,7 +313,6 @@ export function TrccPage() {
 
           {hardwarePage ? (
             <div className="flex flex-col gap-6">
-              <MetricsBarSection trccPort={port} mode="hardware" />
               {loading && !data ? (
                 <div className="h-40 rounded-lg bg-oai-gray-100 dark:bg-oai-gray-900 animate-pulse" />
               ) : null}

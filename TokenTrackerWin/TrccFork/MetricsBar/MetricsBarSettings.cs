@@ -20,11 +20,16 @@ internal sealed class MetricsBarSettings
     public static readonly string[] AllColumns =
         ["cpu", "gpu", "temp", "gpu_temp", "vram", "power", "mem", "disk_read", "disk_write", "up", "dl"];
 
+    // Left-to-right order. Hidden items are skipped, then the rest stack two per column.
+    public static readonly string[] DefaultColumnOrder =
+        ["cpu", "temp", "power", "gpu", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
+
     public bool Enabled { get; set; }
     public int RefreshMs { get; set; } = 1000;
     public double Opacity { get; set; } = 0.92;
     public int TrccPort { get; set; } = DefaultTrccPort;
-    public string[] Columns { get; set; } = ["cpu", "gpu", "temp", "gpu_temp", "vram", "power", "mem", "disk_read", "disk_write", "up", "dl"];
+    public string[] Columns { get; set; } = ["cpu", "temp", "power", "gpu", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
+    public string[] ColumnOrder { get; set; } = ["cpu", "temp", "power", "gpu", "gpu_temp", "vram", "mem", "disk_read", "disk_write", "up", "dl"];
     public string Background { get; set; } = "#1e2024";
     public string Text { get; set; } = "#e8eaed";
     public string TextDim { get; set; } = "#9aa0a8";
@@ -81,6 +86,19 @@ internal sealed class MetricsBarSettings
             .Distinct()
             .ToArray();
         if (Columns.Length == 0) Columns = ["cpu", "temp"];
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var order = new List<string>();
+        foreach (var key in ColumnOrder ?? [])
+        {
+            if (!AllColumns.Contains(key, StringComparer.Ordinal) || !seen.Add(key)) continue;
+            order.Add(key);
+        }
+        foreach (var key in DefaultColumnOrder)
+        {
+            if (seen.Add(key)) order.Add(key);
+        }
+        ColumnOrder = order.ToArray();
     }
 
     private static bool SameColumns(IReadOnlyList<string> columns, IReadOnlyList<string> expected)

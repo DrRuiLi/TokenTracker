@@ -2305,6 +2305,9 @@ metrics_bar.enabled.hint,ui,TrccPage,MetricsBarSection,enabled_hint,You can also
 metrics_bar.refresh,ui,TrccPage,MetricsBarSection,refresh,Refresh interval,,active
 metrics_bar.opacity,ui,TrccPage,MetricsBarSection,opacity,Opacity,,active
 metrics_bar.columns,ui,TrccPage,MetricsBarSection,columns,Visible metrics,,active
+metrics_bar.columns.hint,ui,TrccPage,MetricsBarSection,columns_hint,"Top to bottom is left to right on the taskbar. Hidden metrics are skipped, then the rest stack two per column with the upper list item on top.",,active
+metrics_bar.move_up,ui,TrccPage,MetricsBarSection,move_up,Move {{name}} up,,active
+metrics_bar.move_down,ui,TrccPage,MetricsBarSection,move_down,Move {{name}} down,,active
 metrics_bar.col.cpu,ui,TrccPage,MetricsBarSection,col_cpu,CPU,,active
 metrics_bar.col.gpu,ui,TrccPage,MetricsBarSection,col_gpu,GPU,,active
 metrics_bar.col.mem,ui,TrccPage,MetricsBarSection,col_mem,Memory,,active
