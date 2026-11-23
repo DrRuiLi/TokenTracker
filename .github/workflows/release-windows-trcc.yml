@@ -1,0 +1,129 @@
+name: release Windows (TRCC)
+
+# Full TokenTracker + TRCC side-screen installer via root build.ps1.
+# Fork releases use x.y.z.n versions (see AI_CONTEXT.md); upstream release-windows.yml
+# does not bundle trcc and only accepts x.y.z.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.5.25.4)"
+        required: true
+        type: string
+      publish:
+        description: "Publish release when build succeeds (false keeps a draft)"
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: release-windows-trcc-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verify version
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            Write-Host "::error::Invalid version: $env:VERSION"
+            exit 1
+          }
+          $pkg = node -p "require('./package.json').version"
+          if ($pkg -ne $env:VERSION) {
+            Write-Host "::error::package.json version ($pkg) does not match input ($env:VERSION)"
+            exit 1
+          }
+          $csproj = Get-Content TokenTrackerWin/TokenTrackerWin.csproj -Raw
+          if ($csproj -notmatch "<Version>$([regex]::Escape($env:VERSION))</Version>") {
+            Write-Host "::error::TokenTrackerWin.csproj <Version> does not match $env:VERSION"
+            exit 1
+          }
+          Write-Host "Version OK: $env:VERSION"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build installer (build.ps1)
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          powershell -ExecutionPolicy Bypass -File ./build.ps1 -BuildVersion $env:VERSION
+
+      - name: Package zip
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          Compress-Archive -Path TokenTrackerWin/publish/* -DestinationPath "TokenTracker-win-x64-v$env:VERSION.zip" -CompressionLevel Optimal
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          $tag = "v$env:VERSION"
+          $notes = "Windows installer (TokenTracker + TRCC side screen)."
+          $setupBuilt = "TokenTrackerWin/installer/Output/TokenTracker-Setup-v$env:VERSION.exe"
+          $zipBuilt = "TokenTracker-win-x64-v$env:VERSION.zip"
+          if (-not (Test-Path $setupBuilt)) { Write-Host "::error::missing $setupBuilt"; exit 1 }
+          if (-not (Test-Path $zipBuilt)) { Write-Host "::error::missing $zipBuilt"; exit 1 }
+
+          $draft = $true
+          if ($env:PUBLISH -eq 'true') { $draft = $false }
+
+          $releaseJson = gh release view $tag --json isDraft,uploadUrl 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title $tag --notes $notes $(if ($draft) { '--draft' })
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            $release = $releaseJson | ConvertFrom-Json
+            if (-not $release.isDraft -and $draft -eq $false) {
+              Write-Host "::error::Release $tag is already published. Bump the version instead."
+              exit 1
+            }
+          }
+
+          Copy-Item $setupBuilt TokenTracker-Setup.exe -Force
+          Copy-Item $zipBuilt TokenTracker-win-x64.zip -Force
+          gh release upload $tag TokenTracker-Setup.exe TokenTracker-win-x64.zip --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          if ($env:PUBLISH -eq 'true') {
+            gh release edit $tag --draft=false
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Write-Host "Release $tag ready."

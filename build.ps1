@@ -45,6 +45,9 @@ foreach ($candidate in @(
 if (-not $python -and (Get-Command py -ErrorAction SilentlyContinue)) {
     $python = (& py -3.12 -c "import sys; print(sys.executable)").Trim()
 }
+if (-not $python -and (Get-Command python -ErrorAction SilentlyContinue)) {
+    $python = (Get-Command python).Source
+}
 if (-not $python -or -not (Test-Path -LiteralPath $python)) {
     throw "Python 3.12 not found. Install it or put python.exe on PATH."
 }
