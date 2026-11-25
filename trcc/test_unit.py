@@ -460,6 +460,30 @@ def test_queue_dedup_timezone_and_billable_heal():
     assert s["total_all"] == 115 and s["active_days"] == 1
 
 
+def test_grok_bot_quota_file_wins():
+    import json
+    import os
+    from render import load_grok_bot_view
+    now = dt.datetime(2026, 11, 5, 5, 41, tzinfo=dt.timezone.utc)
+    with tempfile.TemporaryDirectory() as directory:
+        quota = os.path.join(directory, "grok-bot-quota.json")
+        official = os.path.join(directory, "cursor-usage-limits-cache.json")
+        window = {
+            "used_percent": 12.5,
+            "reset_at": "2026-11-08T03:09:14.090Z",
+            "limit_window_seconds": 604800,
+        }
+        with open(quota, "w", encoding="utf-8") as handle:
+            json.dump({"quaternary_window": window, "fetched_at": "2026-11-05T05:40:00Z"}, handle)
+        with open(official, "w", encoding="utf-8") as handle:
+            json.dump({"cursor": {"quaternary_window": {**window, "used_percent": 90}}}, handle)
+        view = load_grok_bot_view(official, now, quota)
+        assert view["used_percent"] == 12.5
+        with open(quota, "w", encoding="utf-8") as handle:
+            json.dump({"quaternary_window": None, "fetched_at": "2026-11-05T05:41:00Z"}, handle)
+        assert load_grok_bot_view(official, now, quota) is None
+
+
 def test_grok_bot_weekly_view():
     from render import grok_bot_view
     now = dt.datetime(2026, 11, 5, 5, 41, tzinfo=dt.timezone.utc)
@@ -523,6 +547,7 @@ if __name__ == "__main__":
         test_theme_edit_derived_shades,
         test_host_settings_and_parent,
         test_queue_dedup_timezone_and_billable_heal,
+        test_grok_bot_quota_file_wins,
         test_grok_bot_weekly_view,
         test_preview_render,
     ):

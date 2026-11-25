@@ -271,6 +271,26 @@ def grok_bot_cache_path():
     return os.path.join(os.path.expanduser("~"), ".tokentracker", "tracker", "cursor-usage-limits-cache.json")
 
 
+def grok_bot_quota_path():
+    """Written on the X-subscription refresh. Prefer this over the official limits cache."""
+    return os.path.join(os.path.expanduser("~"), ".tokentracker", "tracker", "grok-bot-quota.json")
+
+
+def _quota_file_window(path):
+    """(found, window). found is false when this file is absent or not our snapshot."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except FileNotFoundError:
+        return False, None
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return False, None
+    if not isinstance(data, dict) or "quaternary_window" not in data:
+        return False, None
+    window = data.get("quaternary_window")
+    return True, window if isinstance(window, dict) else None
+
+
 def grok_bot_view(window, now):
     """Weekly Grok Bot window -> used percent, remaining-time percent, and 'N d N h'."""
     if not isinstance(window, dict) or now is None:
@@ -318,9 +338,17 @@ def grok_bot_view(window, now):
     }
 
 
-def load_grok_bot_view(path=None, now=None):
-    path = path or grok_bot_cache_path()
+def load_grok_bot_view(path=None, now=None, quota_path=None):
     now = now or dt.datetime.now(dt.timezone.utc)
+    if path is None and quota_path is None:
+        quota_path = grok_bot_quota_path()
+        path = grok_bot_cache_path()
+    if quota_path:
+        found, window = _quota_file_window(quota_path)
+        if found:
+            return grok_bot_view(window, now)
+    if not path:
+        return None
     try:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)

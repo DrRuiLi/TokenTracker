@@ -17,6 +17,7 @@ const {
   refreshGrokBillingExport,
 } = require("../lib/grok-billing-export");
 const { startGrokBillingRefreshLoop } = require("../lib/grok-billing-scheduler");
+const { refreshGrokBotQuota } = require("../lib/grok-bot-quota");
 
 const DEFAULT_PORT = 7680;
 // Windows Delivery Optimization (DoSvc) listens on 0.0.0.0:7680 on virtually
@@ -238,14 +239,25 @@ async function cmdServe(argv) {
     ensureMergedUsage({ queuePath }).catch((e) =>
       process.stdout.write(`Merged usage refresh warning: ${e?.message || e}\n`),
     );
-  const refreshBillingAndMerge = () =>
-    (process.platform === "win32"
+  // Same cadence as the X-subscription CSV. Sand uses the local Cursor token,
+  // so a billing failure does not skip the percent, and the reverse is also true.
+  const refreshGrokBotQuotaSafe = () =>
+    refreshGrokBotQuota({ queuePath }).catch((e) =>
+      process.stdout.write(`Grok Bot quota refresh warning: ${e?.message || e}\n`),
+    );
+  const refreshBillingAndMerge = () => {
+    const billing = process.platform === "win32"
       ? refreshGrokBillingExport({ queuePath })
           .then(() => refreshMergedUsage())
           .catch((e) =>
             process.stdout.write(`Grok billing refresh warning: ${e?.message || e}\n`),
           )
-      : refreshMergedUsage());
+      : refreshMergedUsage();
+    const quota = process.platform === "win32"
+      ? refreshGrokBotQuotaSafe()
+      : Promise.resolve();
+    return Promise.all([billing, quota]);
+  };
   const grokBillingRefreshLoop = startGrokBillingRefreshLoop({
     queuePath,
     refreshBillingAndMerge,
