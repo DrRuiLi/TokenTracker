@@ -1,5 +1,6 @@
 name: release Windows
 
+# Already manual-only (and callable from the manual macOS release). Kept that way on this fork.
 on:
   # Manual one-off Windows build. It may only attach assets to an existing draft
   # created by release-dmg.yml; it can never create or mutate a public release.

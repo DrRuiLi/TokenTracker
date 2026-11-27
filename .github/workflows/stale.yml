@@ -1,8 +1,7 @@
 name: Stale
 
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  schedule:
-    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:

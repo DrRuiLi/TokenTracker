@@ -21,15 +21,16 @@ test("npm-publish workflow file exists", () => {
   assert.ok(fs.existsSync(WORKFLOW_PATH), "workflow file should exist");
 });
 
-test("workflow triggers only after canonical CI completes on main", () => {
+test("npm publish does not run automatically on this fork", () => {
   const content = loadWorkflow();
-  assert.ok(content.includes("workflow_run:"), "should trigger from workflow_run");
-  assert.ok(content.includes("workflows: [CI]"), "should depend on canonical CI");
-  assert.ok(content.includes("types: [completed]"), "should wait for CI completion");
-  assert.ok(
-    content.includes("branches: [main]"),
-    "should target main branch only"
-  );
+  const onIdx = content.indexOf("\non:\n");
+  const concurrencyIdx = content.indexOf("\nconcurrency:");
+  assert.ok(onIdx >= 0 && concurrencyIdx > onIdx, "workflow must declare triggers before concurrency");
+  const trigger = content.slice(onIdx, concurrencyIdx);
+  assert.ok(!trigger.includes("workflow_run:"), "must not publish after CI");
+  assert.ok(!trigger.includes("schedule:"), "must not publish on a timer");
+  assert.ok(!trigger.includes("\n  push:"), "must not publish on push");
+  assert.ok(trigger.includes("workflow_dispatch:"), "manual publish remains available");
 });
 
 test("canonical CI never cancels an in-flight main version commit", () => {

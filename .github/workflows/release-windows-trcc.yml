@@ -3,6 +3,7 @@ name: release Windows (TRCC)
 # Full TokenTracker + TRCC side-screen installer via root build.ps1.
 # Fork releases use x.y.z.n versions (see AI_CONTEXT.md); upstream release-windows.yml
 # does not bundle trcc and only accepts x.y.z.
+# Tag pushes no longer start a release. Start this from the Actions tab if needed.
 
 on:
   workflow_dispatch:
@@ -16,9 +17,6 @@ on:
         required: false
         type: boolean
         default: true
-  push:
-    tags:
-      - "v*"
 
 concurrency:
   group: release-windows-trcc-${{ github.event.inputs.version || github.ref_name }}

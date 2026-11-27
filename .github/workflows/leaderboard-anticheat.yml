@@ -6,10 +6,9 @@ name: leaderboard anti-cheat scan
 # removes excluded users from materialized snapshots, and independently reads
 # back durable queue state. Permanent purge/ban remains a human decision.
 # Public logs contain counts only, never identities.
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  schedule:
-    - cron: "53 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 concurrency:
   group: leaderboard-anticheat
