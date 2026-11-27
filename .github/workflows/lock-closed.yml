@@ -1,8 +1,7 @@
 name: Lock closed issues
 
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  schedule:
-    - cron: "0 14 * * *"
   workflow_dispatch:
 
 permissions:

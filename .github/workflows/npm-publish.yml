@@ -1,17 +1,7 @@
 name: npm publish
 
+# Automatic publish is off on this fork. Start this from the Actions tab if needed.
 on:
-  # Publish only after the canonical CI workflow completes for the exact main
-  # commit. The former duplicate gate omitted validators and native checks.
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  # Recovery path. The version-commit gate below means a version whose own CI
-  # failed can never publish: the fix-up commit passes CI but leaves the version
-  # unchanged, so both are skipped and that version is stranded. This lets a
-  # maintainer publish main's current version after its CI has gone green, with
-  # the same "not already on npm" guarantee and an explicit CI check.
   workflow_dispatch:
 
 concurrency:

@@ -15,10 +15,9 @@ name: leaderboard moderation audit
 # account nobody banned -- which needs no threshold and has no false positives.
 # Counts only; identities stay out of the public log and are pulled from the
 # table by hand.
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  schedule:
-    - cron: "17 7 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 concurrency:
   group: leaderboard-moderation-audit

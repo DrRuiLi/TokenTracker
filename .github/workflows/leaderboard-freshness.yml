@@ -15,10 +15,9 @@ name: leaderboard freshness
 # Read-only: hits the public leaderboard endpoint with no credentials. No prod
 # DB access, no secrets beyond the default GITHUB_TOKEN used to file the alert.
 
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 concurrency:
   group: leaderboard-freshness

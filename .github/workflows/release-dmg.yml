@@ -1,5 +1,6 @@
 name: release (macOS + Windows + Linux)
 
+# Already manual-only. Kept that way on this fork.
 on:
   workflow_dispatch:
     inputs:

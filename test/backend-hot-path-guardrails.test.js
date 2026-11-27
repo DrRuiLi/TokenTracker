@@ -427,11 +427,12 @@ test("leaderboard refresh reconciles stale rows after the replacement snapshot i
 
 test("leaderboard anti-cheat workflow verifies database-native scans, reconciles exclusions, and never leaks identities", () => {
   const workflow = read(".github/workflows/leaderboard-anticheat.yml");
-  assert.match(
+  assert.doesNotMatch(
     workflow,
-    /cron: "53 \* \* \* \*"/u,
-    "a daily poll can miss a flag created after that day's run for nearly 24 hours",
+    /^\s*schedule:/mu,
+    "this fork must not schedule the upstream anti-cheat scan",
   );
+  assert.doesNotMatch(workflow, /cron:/u);
   assert.doesNotMatch(
     workflow,
     /issues:\s*write|gh issue (?:create|edit|close|list)/u,

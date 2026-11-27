@@ -1,8 +1,8 @@
 name: Labeler
 
+# Automatic runs are off on this fork. Start this from the Actions tab if needed.
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
